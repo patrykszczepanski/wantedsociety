@@ -17,15 +17,27 @@ export async function PATCH(
 
   const updateData: Record<string, unknown> = {};
 
-  if ("email_confirmed_at" in body) {
-    updateData.email_confirmed_at = body.email_confirmed_at;
+  if ("role" in body) {
+    if (body.role !== "user" && body.role !== "admin") {
+      return NextResponse.json(
+        { error: "Role must be 'user' or 'admin'" },
+        { status: 400 }
+      );
+    }
+    if (id === user.id) {
+      return NextResponse.json(
+        { error: "Nie możesz zmienić własnej roli" },
+        { status: 400 }
+      );
+    }
+    updateData.role = body.role;
   }
 
   const { data, error } = await supabase
     .from("profiles")
     .update(updateData)
     .eq("id", id)
-    .select("id, email, full_name, role, email_confirmed_at, created_at")
+    .select("id, email, full_name, role, created_at")
     .single();
 
   if (error) {

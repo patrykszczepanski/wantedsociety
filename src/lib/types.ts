@@ -8,7 +8,6 @@ export interface Profile {
   full_name: string;
   instagram_handle: string | null;
   role: UserRole;
-  email_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }

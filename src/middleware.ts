@@ -40,13 +40,6 @@ export async function middleware(request: NextRequest) {
 
   const profile = sessionData.profiles as unknown as Profile;
 
-  // Protected routes: /zgloszenia — require email confirmation
-  if (pathname.startsWith("/zgloszenia") && !profile.email_confirmed_at) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/email-niepotwierdzony";
-    return NextResponse.redirect(url);
-  }
-
   // Admin routes — require admin role
   if (pathname.startsWith("/admin") && profile.role !== "admin") {
     const url = request.nextUrl.clone();

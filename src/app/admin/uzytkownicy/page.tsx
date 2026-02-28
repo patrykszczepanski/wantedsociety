@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -11,22 +17,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X } from "lucide-react";
 
 interface UserProfile {
   id: string;
   email: string;
   full_name: string;
   role: string;
-  email_confirmed_at: string | null;
   created_at: string;
 }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
+    fetch("/api/auth/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data?.id) setCurrentUserId(data.id); });
   }, []);
 
   async function loadUsers() {
@@ -37,18 +45,15 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function toggleEmailConfirmed(user: UserProfile) {
-    const newValue = user.email_confirmed_at
-      ? null
-      : new Date().toISOString();
-
-    await fetch(`/api/admin/users/${user.id}`, {
+  async function handleRoleChange(userId: string, newRole: string) {
+    const res = await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email_confirmed_at: newValue }),
+      body: JSON.stringify({ role: newRole }),
     });
-
-    await loadUsers();
+    if (res.ok) {
+      await loadUsers();
+    }
   }
 
   return (
@@ -62,7 +67,6 @@ export default function AdminUsersPage() {
               <TableHead>Imię</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Rola</TableHead>
-              <TableHead>Email potwierdzony</TableHead>
               <TableHead>Data rejestracji</TableHead>
               <TableHead>Akcje</TableHead>
             </TableRow>
@@ -70,7 +74,7 @@ export default function AdminUsersPage() {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Brak użytkowników
                 </TableCell>
               </TableRow>
@@ -91,31 +95,22 @@ export default function AdminUsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {user.email_confirmed_at ? (
-                      <Badge className="bg-green-500/20 text-green-400">
-                        <Check className="w-3 h-3 mr-1" />
-                        Tak
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-yellow-500/20 text-yellow-400">
-                        <X className="w-3 h-3 mr-1" />
-                        Nie
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
                     {new Date(user.created_at).toLocaleDateString("pl-PL")}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => toggleEmailConfirmed(user)}
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => handleRoleChange(user.id, value)}
+                      disabled={user.id === currentUserId}
                     >
-                      {user.email_confirmed_at
-                        ? "Cofnij potwierdzenie"
-                        : "Potwierdź email"}
-                    </Button>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">user</SelectItem>
+                        <SelectItem value="admin">admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               ))
