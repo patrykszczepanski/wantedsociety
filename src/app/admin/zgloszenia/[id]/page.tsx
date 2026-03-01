@@ -10,7 +10,7 @@ import { ConversationThread } from "@/components/applications/conversation-threa
 import { ApplicationPhotos } from "@/components/applications/application-photos";
 import { APPLICATION_TYPES, APPLICATION_STATUSES, CABIN_ELIGIBLE_TYPES } from "@/lib/constants";
 import type { Application, ApplicationStatus, ExhibitorData } from "@/lib/types";
-import { Check, Home, X } from "lucide-react";
+import { Check, Home, Trash2, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 const statusColors: Record<ApplicationStatus, string> = {
@@ -25,6 +25,7 @@ export default function AdminApplicationDetailPage() {
   const [application, setApplication] = useState<Application | null>(null);
   const [userId, setUserId] = useState<string>("");
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [togglingCabin, setTogglingCabin] = useState(false);
 
   useEffect(() => {
@@ -56,6 +57,19 @@ export default function AdminApplicationDetailPage() {
       setApplication(data);
     }
     setUpdating(false);
+  }
+
+  async function deleteApplication() {
+    if (!confirm("Czy na pewno chcesz usunąć to zgłoszenie?")) return;
+    setDeleting(true);
+    const res = await fetch(`/api/admin/applications/${id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      router.push("/admin/zgloszenia");
+      return;
+    }
+    setDeleting(false);
   }
 
   async function toggleCabinPayment(confirmed: boolean) {
@@ -193,6 +207,15 @@ export default function AdminApplicationDetailPage() {
             >
               <X className="w-4 h-4 mr-2" />
               Odrzuć
+            </Button>
+            <Button
+              onClick={deleteApplication}
+              disabled={deleting}
+              variant="destructive"
+              className="ml-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {deleting ? "Usuwanie..." : "Usuń zgłoszenie"}
             </Button>
           </div>
         </CardContent>

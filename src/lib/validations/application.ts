@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const exhibitorSchema = z.object({
   car_name: z.string().min(2, "Nazwa samochodu musi mieć min. 2 znaki"),
+  license_plate: z.string().min(2, "Numer rejestracyjny musi mieć min. 2 znaki"),
   modification_description: z
     .string()
     .min(10, "Opis modyfikacji musi mieć min. 10 znaków"),

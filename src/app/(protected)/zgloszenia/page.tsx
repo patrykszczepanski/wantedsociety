@@ -18,6 +18,24 @@ const statusColors: Record<ApplicationStatus, string> = {
   rejected: "bg-red-500/20 text-red-400",
 };
 
+function getApplicationTitle(app: Application): string {
+  const data = app.data as unknown as Record<string, unknown>;
+  switch (app.type) {
+    case "exhibitor": {
+      const carName = data.car_name as string;
+      const plate = data.license_plate as string;
+      if (!carName) return APPLICATION_TYPES[app.type];
+      return plate ? `${carName} · ${plate}` : carName;
+    }
+    case "media":
+      return (data.instagram_handle as string) || APPLICATION_TYPES[app.type];
+    case "partner":
+      return (data.company_name as string) || APPLICATION_TYPES[app.type];
+    default:
+      return APPLICATION_TYPES[app.type];
+  }
+}
+
 export default async function ApplicationsPage() {
   const user = await getCurrentUser();
   const supabase = createAdminClient();
@@ -73,7 +91,7 @@ export default async function ApplicationsPage() {
               <Card className="hover:border-brand-red/50 transition-colors cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">
-                    {APPLICATION_TYPES[app.type]}
+                    {getApplicationTitle(app)}
                   </CardTitle>
                   <Badge className={statusColors[app.status]}>
                     {APPLICATION_STATUSES[app.status]}

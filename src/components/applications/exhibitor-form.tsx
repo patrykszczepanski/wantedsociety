@@ -71,6 +71,18 @@ export function ExhibitorForm() {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="license_plate">Numer rejestracyjny</Label>
+        <Input
+          id="license_plate"
+          placeholder="np. LU 12345"
+          {...register("license_plate")}
+        />
+        {errors.license_plate && (
+          <p className="text-sm text-brand-red">{errors.license_plate.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="modification_description">Opis modyfikacji</Label>
         <Textarea
           id="modification_description"

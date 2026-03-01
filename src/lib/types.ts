@@ -35,6 +35,7 @@ export interface CabinSettings {
 
 export interface ExhibitorData {
   car_name: string;
+  license_plate: string;
   modification_description: string;
   instagram_handle: string;
   photo_paths: string[];
