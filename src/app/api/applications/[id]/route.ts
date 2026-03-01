@@ -16,7 +16,7 @@ export async function GET(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("applications")
-    .select("*")
+    .select("*, event_editions(id, name, year, applications_open)")
     .eq("id", id)
     .single();
 

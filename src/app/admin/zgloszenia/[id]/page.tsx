@@ -111,6 +111,11 @@ export default function AdminApplicationDetailPage() {
           </Badge>
         </CardHeader>
         <CardContent className="space-y-4">
+          {application.event_editions && (
+            <p className="text-sm text-muted-foreground">
+              Edycja: {application.event_editions.name} — {application.event_editions.year}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Złożone:{" "}
             {new Date(application.created_at).toLocaleDateString("pl-PL")}

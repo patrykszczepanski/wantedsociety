@@ -17,7 +17,7 @@ export async function GET() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("applications")
-    .select("*")
+    .select("*, event_editions(id, name, year, applications_open)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -73,6 +73,21 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient();
+
+  // Check for active edition
+  const { data: activeEdition } = await supabase
+    .from("event_editions")
+    .select("id")
+    .eq("applications_open", true)
+    .single();
+
+  if (!activeEdition) {
+    return NextResponse.json(
+      { error: "Zgłoszenia są aktualnie zamknięte" },
+      { status: 403 }
+    );
+  }
+
   const { data: application, error } = await supabase
     .from("applications")
     .insert({
@@ -80,6 +95,7 @@ export async function POST(request: Request) {
       type,
       data: validatedData,
       wants_cabin: wantsCabin,
+      event_edition_id: activeEdition.id,
     })
     .select()
     .single();
@@ -87,7 +103,7 @@ export async function POST(request: Request) {
   if (error) {
     if (error.code === "23505") {
       return NextResponse.json(
-        { error: "Masz już zgłoszenie tego typu" },
+        { error: "Masz już zgłoszenie tego typu na tę edycję" },
         { status: 409 }
       );
     }

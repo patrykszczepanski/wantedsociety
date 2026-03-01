@@ -22,13 +22,23 @@ export function ConversationThread({
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadMessages() {
       const res = await fetch(`/api/applications/${applicationId}/messages`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data || []);
+        setMessages((prev) => {
+          const incoming = data || [];
+          if (
+            prev.length === incoming.length &&
+            prev[prev.length - 1]?.id === incoming[incoming.length - 1]?.id
+          ) {
+            return prev;
+          }
+          return incoming;
+        });
       }
     }
 
@@ -63,7 +73,13 @@ export function ConversationThread({
   }, [applicationId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = containerRef.current;
+    if (!container) return;
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    if (isNearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   async function sendMessage() {
@@ -88,7 +104,7 @@ export function ConversationThread({
 
   return (
     <div className="flex flex-col h-[400px]">
-      <div className="flex-1 overflow-y-auto space-y-3 p-4">
+      <div ref={containerRef} className="flex-1 overflow-y-auto space-y-3 p-4">
         {messages.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-8">
             Brak wiadomości. Rozpocznij konwersację.

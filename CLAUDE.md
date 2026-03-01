@@ -23,10 +23,10 @@ Wanted Society is a Polish automotive events organization (stance meets) based i
 ```
 src/
 ├── app/
-│   ├── (auth)/           # /logowanie, /rejestracja, /email-niepotwierdzony
-│   ├── (protected)/      # /zgloszenia (requires auth + email confirmation)
+│   ├── (auth)/           # /logowanie, /rejestracja
+│   ├── (protected)/      # /zgloszenia (requires auth)
 │   ├── (public)/         # /kontakt, /galeria, /sklep
-│   ├── admin/            # /admin/zgloszenia, /admin/uzytkownicy, /admin/galeria, /admin/sklep
+│   ├── admin/            # /admin/edycje, /admin/zgloszenia, /admin/uzytkownicy, /admin/galeria, /admin/sklep
 │   ├── api/              # API routes (see below)
 │   ├── globals.css       # Tailwind imports + brand theme variables
 │   ├── layout.tsx        # Root layout (Inter + Oswald fonts)
@@ -49,7 +49,8 @@ src/
 │   │   ├── realtime.ts   # Anon key client (for realtime subscriptions)
 │   │   └── storage.ts    # getPublicStorageUrl() helper
 │   ├── validations/
-│   │   └── application.ts  # Zod schemas for exhibitor/media/partner
+│   │   ├── application.ts  # Zod schemas for exhibitor/media/partner
+│   │   └── edition.ts      # Zod schema for event editions
 │   └── email/
 │       ├── resend.ts     # Resend client singleton
 │       └── templates/    # Email templates
@@ -60,7 +61,10 @@ supabase/
     ├── 001_initial_schema.sql
     ├── 002_fix_handle_new_user.sql
     ├── 003_custom_auth.sql
-    └── 004_restore_foreign_keys.sql
+    ├── 004_restore_foreign_keys.sql
+    ├── 005_create_storage_buckets.sql
+    ├── 006_cabin_and_settings.sql
+    └── 007_event_editions.sql
 ```
 
 ## Environment Variables
@@ -75,7 +79,24 @@ ADMIN_EMAIL=                     # Recipient for contact form emails
 FROM_EMAIL=                      # Sender email (defaults to onboarding@resend.dev)
 ```
 
-## Database Schema (8 tables)
+## Database Schema (10 tables)
+
+### event_editions
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | `gen_random_uuid()` |
+| name | TEXT NOT NULL | e.g. "Summer Code 2.0" |
+| year | INT NOT NULL | e.g. 2026 |
+| event_date | DATE | nullable, for sorting |
+| event_date_display | TEXT | nullable, Polish formatted |
+| location | TEXT | nullable |
+| description | TEXT | nullable |
+| instagram_embed_url | TEXT | nullable |
+| applications_open | BOOLEAN NOT NULL | default false; partial unique index ensures max one true |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | auto-trigger |
+
+Editions are **archive-only** — no deletion allowed.
 
 ### profiles
 | Column | Type | Notes |
@@ -85,7 +106,6 @@ FROM_EMAIL=                      # Sender email (defaults to onboarding@resend.d
 | full_name | TEXT NOT NULL | |
 | instagram_handle | TEXT | nullable |
 | password_hash | TEXT NOT NULL | bcrypt hash |
-| email_confirmed_at | TIMESTAMPTZ | null = unconfirmed |
 | role | TEXT | `'user'` or `'admin'` |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | auto-updated via trigger |
@@ -106,9 +126,12 @@ FROM_EMAIL=                      # Sender email (defaults to onboarding@resend.d
 | type | TEXT | `'exhibitor'`, `'media'`, `'partner'` |
 | status | TEXT | `'pending'`, `'accepted'`, `'rejected'` |
 | data | JSONB | Type-specific form data |
+| wants_cabin | BOOLEAN | default false |
+| cabin_payment_confirmed | BOOLEAN | default false |
+| event_edition_id | UUID FK → event_editions | NOT NULL |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
-| | | UNIQUE(user_id, type) |
+| | | UNIQUE(user_id, type, event_edition_id) |
 
 ### application_messages
 | Column | Type | Notes |
@@ -168,6 +191,14 @@ FROM_EMAIL=                      # Sender email (defaults to onboarding@resend.d
 | is_primary | BOOLEAN | default false |
 | sort_order | INT | |
 
+### site_settings
+| Column | Type | Notes |
+|--------|------|-------|
+| key | TEXT PK | setting identifier |
+| value | TEXT | setting value |
+
+Keys used: `cabin_price_pln`, `cabin_payment_deadline_message`
+
 **RLS is disabled on all tables** — access control is handled at the API layer using the service role client.
 
 ## Custom Auth System
@@ -190,7 +221,7 @@ The project uses a **custom session-based auth** system, NOT Supabase Auth.
 - `destroySession()` — delete session row + clear cookie
 
 ### Middleware route protection (`src/middleware.ts`)
-- `/zgloszenia` — requires valid session + `email_confirmed_at` not null
+- `/zgloszenia` — requires valid session
 - `/admin/**` — requires valid session + `role === 'admin'`
 - Unauthorized users redirected to `/logowanie?redirect=<original_path>`
 
@@ -204,11 +235,20 @@ The project uses a **custom session-based auth** system, NOT Supabase Auth.
 | POST | `/api/auth/logout` | Destroy session |
 | GET | `/api/auth/me` | Get current user profile |
 
+### Editions
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/editions/active` | Public — returns active edition or null |
+| GET | `/api/admin/editions` | List all editions (year DESC) |
+| POST | `/api/admin/editions` | Create edition (applications_open defaults false) |
+| GET | `/api/admin/editions/[id]` | Get single edition |
+| PATCH | `/api/admin/editions/[id]` | Update edition / toggle applications_open |
+
 ### Applications
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/applications` | List user's applications |
-| POST | `/api/applications` | Create application (enforces unique per type) |
+| GET | `/api/applications` | List user's applications (with edition join) |
+| POST | `/api/applications` | Create application (requires active edition, unique per type+edition) |
 | GET | `/api/applications/[id]` | Get application detail |
 | PATCH | `/api/applications/[id]` | Update status (admin) |
 | POST | `/api/applications/upload` | Upload photos to `application-photos` bucket |
@@ -218,9 +258,12 @@ The project uses a **custom session-based auth** system, NOT Supabase Auth.
 ### Admin
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/admin/applications` | List all applications |
+| GET | `/api/admin/applications` | List all applications (optional `?edition_id=` filter) |
+| DELETE | `/api/admin/applications/[id]` | Delete application + clean up photos |
+| GET | `/api/admin/cabins` | List applications requesting cabin (optional `?edition_id=` filter) |
+| PATCH | `/api/admin/cabins/[id]` | Toggle cabin payment confirmation |
 | GET | `/api/admin/users` | List all users |
-| PATCH | `/api/admin/users/[id]` | Update user (email confirmation) |
+| PATCH | `/api/admin/users/[id]` | Update user role (prevents self-modification) |
 | GET | `/api/admin/gallery` | List gallery items |
 | POST | `/api/admin/gallery` | Create gallery item |
 | POST | `/api/admin/gallery/upload` | Upload gallery media |
@@ -231,6 +274,11 @@ The project uses a **custom session-based auth** system, NOT Supabase Auth.
 | POST | `/api/admin/products/upload` | Upload product images |
 | PATCH | `/api/admin/products/[id]` | Update product |
 | DELETE | `/api/admin/products/[id]` | Delete product |
+
+### Settings
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/settings/cabin` | Get cabin price & payment deadline (public) |
 
 ### Other
 | Method | Path | Description |
@@ -265,6 +313,9 @@ getPublicStorageUrl(bucket, path)
 2. **002_fix_handle_new_user.sql** — Fixed the profile auto-creation trigger
 3. **003_custom_auth.sql** — Migrated from Supabase Auth to custom auth: dropped auth.users trigger/FK, added password_hash + email_confirmed_at to profiles, created sessions table, disabled RLS on all tables. Note: `DROP CONSTRAINT ... CASCADE` on profiles PK accidentally dropped FKs from applications and application_messages
 4. **004_restore_foreign_keys.sql** — Restored the two foreign keys (`applications.user_id` and `application_messages.sender_id`) that were dropped by the CASCADE in migration 003
+5. **005_create_storage_buckets.sql** — Created storage buckets for application photos, gallery, and products
+6. **006_cabin_and_settings.sql** — Added cabin columns to applications, created site_settings table
+7. **007_event_editions.sql** — Created event_editions table with partial unique index for applications_open, added event_edition_id FK to applications, backfilled existing apps to legacy edition, updated unique constraint to UNIQUE(user_id, type, event_edition_id)
 
 ## Development Commands
 
@@ -304,6 +355,23 @@ if (!user || user.role !== 'admin') return NextResponse.json({ error: '...' }, {
 
 ### Application data in JSONB
 The `applications.data` column stores type-specific data:
-- **exhibitor**: `{ car_name, modification_description, instagram_handle, photo_paths }`
+- **exhibitor**: `{ car_name, license_plate, modification_description, instagram_handle, photo_paths }`
 - **media**: `{ instagram_handle, portfolio_url?, experience_description }`
 - **partner**: `{ contact_number, company_name, application_description }`
+
+Exhibitor and media schemas also include `wants_cabin: boolean` (not stored in JSONB — stored as top-level application column).
+
+### Event editions
+- Each application belongs to an `event_edition` via `event_edition_id` FK
+- Only one edition can have `applications_open = true` at a time (enforced by partial unique index)
+- When submitting a new application, the API checks for an active edition; if none → 403
+- User's "Moje zgłoszenia" page shows current edition apps + archived past editions
+- Landing page event section dynamically pulls data from active/latest edition
+- Admin manages editions at `/admin/edycje` — create, edit, toggle open/close
+- Editions are archive-only (no deletion)
+- Cabin settings remain global (not per-edition)
+
+### Cabin feature
+- Cabin option available for `exhibitor` and `media` application types (see `CABIN_ELIGIBLE_TYPES` in `src/lib/constants.ts`)
+- `CabinOption` component (`src/components/applications/cabin-option.tsx`) fetches pricing from `/api/settings/cabin`
+- Admin confirms payment via `PATCH /api/admin/cabins/[id]`

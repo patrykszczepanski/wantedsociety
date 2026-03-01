@@ -2,6 +2,20 @@ export type ApplicationType = "exhibitor" | "media" | "partner";
 export type ApplicationStatus = "pending" | "accepted" | "rejected";
 export type UserRole = "user" | "admin";
 
+export interface EventEdition {
+  id: string;
+  name: string;
+  year: number;
+  event_date: string | null;
+  event_date_display: string | null;
+  location: string | null;
+  description: string | null;
+  instagram_embed_url: string | null;
+  applications_open: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -20,11 +34,18 @@ export interface Application {
   data: ExhibitorData | MediaData | PartnerData;
   wants_cabin: boolean;
   cabin_payment_confirmed: boolean;
+  event_edition_id: string;
   created_at: string;
   updated_at: string;
   profiles?: {
     email: string;
     full_name: string;
+  };
+  event_editions?: {
+    id: string;
+    name: string;
+    year: number;
+    applications_open: boolean;
   };
 }
 

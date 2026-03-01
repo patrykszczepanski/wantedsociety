@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -17,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { APPLICATION_TYPES, APPLICATION_STATUSES } from "@/lib/constants";
-import type { Application, ApplicationStatus } from "@/lib/types";
+import type { Application, ApplicationStatus, EventEdition } from "@/lib/types";
 
 const statusColors: Record<ApplicationStatus, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -33,11 +40,35 @@ export default function AdminDomkiPage() {
 
   const [bookings, setBookings] = useState<Application[]>([]);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [editions, setEditions] = useState<EventEdition[]>([]);
+  const [editionFilter, setEditionFilter] = useState<string>("all");
 
   useEffect(() => {
     loadSettings();
-    loadBookings();
+    async function loadEditions() {
+      const res = await fetch("/api/admin/editions");
+      if (res.ok) {
+        const data = await res.json();
+        setEditions(data ?? []);
+        const active = data?.find((e: EventEdition) => e.applications_open);
+        if (active) setEditionFilter(active.id);
+      }
+    }
+    loadEditions();
   }, []);
+
+  const loadBookings = useCallback(async () => {
+    const params = editionFilter !== "all" ? `?edition_id=${editionFilter}` : "";
+    const res = await fetch(`/api/admin/cabins${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      setBookings(data ?? []);
+    }
+  }, [editionFilter]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   async function loadSettings() {
     const res = await fetch("/api/admin/settings");
@@ -49,14 +80,6 @@ export default function AdminDomkiPage() {
       }
       setCabinPrice(map.cabin_price_pln ?? "250");
       setDeadlineMessage(map.cabin_payment_deadline_message ?? "");
-    }
-  }
-
-  async function loadBookings() {
-    const res = await fetch("/api/admin/cabins");
-    if (res.ok) {
-      const data = await res.json();
-      setBookings(data ?? []);
     }
   }
 
@@ -184,6 +207,24 @@ export default function AdminDomkiPage() {
             <p className="text-3xl font-bold text-yellow-400">{unpaidCabins}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Edition Filter */}
+      <div className="mb-4">
+        <Select value={editionFilter} onValueChange={setEditionFilter}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Edycja" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie edycje</SelectItem>
+            {editions.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name} — {e.year}
+                {e.applications_open ? " (aktywna)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Bookings Table */}

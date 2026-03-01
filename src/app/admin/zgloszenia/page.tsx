@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { APPLICATION_TYPES, APPLICATION_STATUSES } from "@/lib/constants";
-import type { Application, ApplicationStatus } from "@/lib/types";
+import type { Application, ApplicationStatus, EventEdition } from "@/lib/types";
 import { Check, X } from "lucide-react";
 import { CABIN_ELIGIBLE_TYPES } from "@/lib/constants";
 
@@ -39,20 +39,38 @@ const statusColors: Record<ApplicationStatus, string> = {
 
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [editions, setEditions] = useState<EventEdition[]>([]);
+  const [editionFilter, setEditionFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
+  const loadApplications = useCallback(async () => {
+    const params = editionFilter !== "all" ? `?edition_id=${editionFilter}` : "";
+    const res = await fetch(`/api/admin/applications${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      setApplications(data || []);
+    }
+  }, [editionFilter]);
+
   useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/admin/applications");
+    async function loadEditions() {
+      const res = await fetch("/api/admin/editions");
       if (res.ok) {
         const data = await res.json();
-        setApplications(data || []);
+        setEditions(data ?? []);
+        // Default to active edition
+        const active = data?.find((e: EventEdition) => e.applications_open);
+        if (active) setEditionFilter(active.id);
       }
     }
-    load();
+    loadEditions();
   }, []);
+
+  useEffect(() => {
+    loadApplications();
+  }, [loadApplications]);
 
   const filtered = applications.filter((app) => {
     if (typeFilter !== "all" && app.type !== typeFilter) return false;
@@ -77,6 +95,20 @@ export default function AdminApplicationsPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
+        <Select value={editionFilter} onValueChange={setEditionFilter}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Edycja" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie edycje</SelectItem>
+            {editions.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.name} — {e.year}
+                {e.applications_open ? " (aktywna)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Typ" />
@@ -106,6 +138,7 @@ export default function AdminApplicationsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Użytkownik</TableHead>
+              <TableHead>Edycja</TableHead>
               <TableHead>Typ</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Domek</TableHead>
@@ -116,7 +149,7 @@ export default function AdminApplicationsPage() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Brak zgłoszeń
                 </TableCell>
               </TableRow>
@@ -126,6 +159,11 @@ export default function AdminApplicationsPage() {
                   <TableCell>
                     <div>{app.profiles?.full_name ?? "—"}</div>
                     <div className="text-sm text-muted-foreground">{getApplicationDetail(app)}</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">
+                      {app.event_editions?.name ?? "—"}
+                    </span>
                   </TableCell>
                   <TableCell>{APPLICATION_TYPES[app.type]}</TableCell>
                   <TableCell>

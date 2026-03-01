@@ -34,7 +34,7 @@ export default async function ApplicationDetailPage({
   const supabase = createAdminClient();
   const { data: application } = await supabase
     .from("applications")
-    .select("*")
+    .select("*, event_editions(id, name, year, applications_open)")
     .eq("id", id)
     .single();
 
@@ -64,6 +64,11 @@ export default async function ApplicationDetailPage({
           </Badge>
         </CardHeader>
         <CardContent className="space-y-4">
+          {app.event_editions && (
+            <p className="text-sm text-muted-foreground">
+              Edycja: {app.event_editions.name} — {app.event_editions.year}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Złożone: {new Date(app.created_at).toLocaleDateString("pl-PL")}
           </p>
