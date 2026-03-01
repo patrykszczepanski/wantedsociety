@@ -16,7 +16,7 @@ export async function GET(
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("application_messages")
-    .select("*")
+    .select("*, profiles!sender_id(full_name)")
     .eq("application_id", id)
     .order("created_at", { ascending: true });
 
@@ -24,7 +24,12 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  const messages = data?.map(({ profiles, ...msg }: Record<string, unknown>) => ({
+    ...msg,
+    sender_name: (profiles as { full_name: string } | null)?.full_name ?? "Użytkownik",
+  }));
+
+  return NextResponse.json(messages);
 }
 
 export async function POST(
@@ -64,5 +69,5 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json({ ...data, sender_name: user.full_name }, { status: 201 });
 }

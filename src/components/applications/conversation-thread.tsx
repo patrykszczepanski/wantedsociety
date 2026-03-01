@@ -34,6 +34,8 @@ export function ConversationThread({
 
     loadMessages();
 
+    const interval = setInterval(loadMessages, 3000);
+
     const supabase = getRealtimeClient();
     const channel = supabase
       .channel(`messages-${applicationId}`)
@@ -46,12 +48,16 @@ export function ConversationThread({
           filter: `application_id=eq.${applicationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as ApplicationMessage]);
+          const newMsg = payload.new as ApplicationMessage;
+          setMessages((prev) =>
+            prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]
+          );
         }
       )
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [applicationId]);
@@ -71,6 +77,10 @@ export function ConversationThread({
     });
 
     if (res.ok) {
+      const sentMessage = await res.json();
+      setMessages((prev) =>
+        prev.some((m) => m.id === sentMessage.id) ? prev : [...prev, sentMessage]
+      );
       setNewMessage("");
     }
     setSending(false);
@@ -93,11 +103,16 @@ export function ConversationThread({
           >
             <div
               className={`max-w-[75%] rounded-lg px-4 py-2 ${
-                msg.is_admin
-                  ? "bg-brand-teal/20 text-white"
+                msg.sender_id === currentUserId
+                  ? "bg-brand-red/20 text-white"
                   : "bg-secondary text-white"
               }`}
             >
+              {msg.sender_id !== currentUserId && (
+                <p className="text-xs font-semibold mb-0.5">
+                  {msg.is_admin ? "Administrator" : msg.sender_name}
+                </p>
+              )}
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {new Date(msg.created_at).toLocaleString("pl-PL")}

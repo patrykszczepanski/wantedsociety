@@ -60,6 +60,7 @@ export interface ApplicationMessage {
   content: string;
   is_admin: boolean;
   created_at: string;
+  sender_name?: string;
 }
 
 export interface ApplicationPhoto {
