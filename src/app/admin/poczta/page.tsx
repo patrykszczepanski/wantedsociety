@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Mail,
@@ -12,17 +12,31 @@ import {
   ArrowLeft,
   Send,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APPLICATION_TYPES } from "@/lib/constants";
-import type { InboundEmail, EmailStatus } from "@/lib/types";
+import type {
+  EmailThread,
+  InboundEmail,
+  ApplicationType,
+  ExhibitorData,
+  MediaData,
+  PartnerData,
+} from "@/lib/types";
 
-function getApplicationLabel(email: InboundEmail): string {
-  if (!email.applications) return "Powiązane zgłoszenie";
-  const typeLabel = APPLICATION_TYPES[email.applications.type] || email.applications.type;
-  const data = email.applications.data as unknown as Record<string, unknown>;
-  const name = data?.car_name || data?.company_name || data?.instagram_handle || "";
-  const edition = email.applications.event_editions;
+type ThreadFilter = "" | "unread" | "linked" | "archived";
+
+function getApplicationLabel(app: {
+  type: ApplicationType;
+  data: ExhibitorData | MediaData | PartnerData;
+  event_editions?: { name: string; year: number } | null;
+}): string {
+  const typeLabel = APPLICATION_TYPES[app.type] || app.type;
+  const data = app.data as unknown as Record<string, unknown>;
+  const name =
+    data?.car_name || data?.company_name || data?.instagram_handle || "";
+  const edition = app.event_editions;
   const editionLabel = edition ? `${edition.name}` : "";
   if (name && editionLabel) return `${typeLabel} — ${name} (${editionLabel})`;
   if (name) return `${typeLabel} — ${name}`;
@@ -30,78 +44,112 @@ function getApplicationLabel(email: InboundEmail): string {
   return typeLabel;
 }
 
-const STATUS_LABELS: Record<EmailStatus, string> = {
+function relativeTime(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "teraz";
+  if (diffMin < 60) return `${diffMin} min temu`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} godz. temu`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} dn. temu`;
+  return date.toLocaleDateString("pl-PL");
+}
+
+const FILTER_LABELS: Record<ThreadFilter, string> = {
+  "": "Wszystkie",
   unread: "Nieprzeczytane",
-  read: "Przeczytane",
   linked: "Powiązane",
   archived: "Zarchiwizowane",
 };
 
-const STATUS_COLORS: Record<EmailStatus, string> = {
-  unread: "bg-brand-red/20 text-brand-red",
-  read: "bg-secondary text-muted-foreground",
-  linked: "bg-green-500/20 text-green-400",
-  archived: "bg-muted text-muted-foreground",
-};
-
 export default function AdminInboxPage() {
-  const [emails, setEmails] = useState<InboundEmail[]>([]);
+  const [threads, setThreads] = useState<EmailThread[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [selectedEmail, setSelectedEmail] = useState<InboundEmail | null>(null);
-  const [replyContent, setReplyContent] = useState("");
-  const [sending, setSending] = useState(false);
+  const [filter, setFilter] = useState<ThreadFilter>("");
   const [loading, setLoading] = useState(true);
 
-  const loadEmails = useCallback(async () => {
+  // Thread detail state
+  const [selectedThread, setSelectedThread] = useState<{
+    messages: InboundEmail[];
+    application: EmailThread["applications"];
+  } | null>(null);
+  const [selectedThreadMeta, setSelectedThreadMeta] =
+    useState<EmailThread | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadThreads = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: page.toString() });
-    if (statusFilter) params.set("status", statusFilter);
+    if (filter) params.set("status", filter);
 
-    const res = await fetch(`/api/admin/inbox?${params}`);
+    const res = await fetch(`/api/admin/inbox/threads?${params}`);
     if (res.ok) {
       const data = await res.json();
-      setEmails(data.emails || []);
+      setThreads(data.threads || []);
       setTotal(data.total || 0);
     }
     setLoading(false);
-  }, [page, statusFilter]);
+  }, [page, filter]);
 
   useEffect(() => {
-    loadEmails();
-  }, [loadEmails]);
+    loadThreads();
+  }, [loadThreads]);
 
-  async function openEmail(email: InboundEmail) {
-    const res = await fetch(`/api/admin/inbox/${email.id}`);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedThread?.messages]);
+
+  async function openThread(thread: EmailThread) {
+    const res = await fetch(`/api/admin/inbox/threads/${thread.thread_id}`);
     if (res.ok) {
       const data = await res.json();
-      setSelectedEmail(data);
-      // Update in list
-      setEmails((prev) =>
-        prev.map((e) => (e.id === data.id ? data : e))
+      setSelectedThread(data);
+      setSelectedThreadMeta(thread);
+      // Update unread count in list
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.thread_id === thread.thread_id ? { ...t, unread_count: 0 } : t
+        )
       );
     }
   }
 
-  async function updateStatus(emailId: string, status: EmailStatus) {
-    const res = await fetch(`/api/admin/inbox/${emailId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
+  async function updateThreadStatus(status: "unread" | "archived") {
+    if (!selectedThreadMeta) return;
+    const res = await fetch(
+      `/api/admin/inbox/threads/${selectedThreadMeta.thread_id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }
+    );
     if (res.ok) {
-      const updated = await res.json();
-      setEmails((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-      if (selectedEmail?.id === updated.id) setSelectedEmail(updated);
+      setSelectedThread(null);
+      setSelectedThreadMeta(null);
+      setReplyContent("");
+      loadThreads();
     }
   }
 
   async function sendReply() {
-    if (!selectedEmail || !replyContent.trim()) return;
-    setSending(true);
+    if (!selectedThread || !replyContent.trim()) return;
+    // Find latest inbound message to reply to (for threading headers)
+    const inboundMessages = selectedThread.messages.filter(
+      (m) => m.direction === "inbound"
+    );
+    const targetEmail =
+      inboundMessages[inboundMessages.length - 1] ||
+      selectedThread.messages[0];
 
-    const res = await fetch(`/api/admin/inbox/${selectedEmail.id}/reply`, {
+    setSending(true);
+    const res = await fetch(`/api/admin/inbox/${targetEmail.id}/reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: replyContent }),
@@ -109,110 +157,154 @@ export default function AdminInboxPage() {
 
     if (res.ok) {
       setReplyContent("");
+      // Reload thread to show the new outbound message
+      if (selectedThreadMeta) {
+        const threadRes = await fetch(
+          `/api/admin/inbox/threads/${selectedThreadMeta.thread_id}`
+        );
+        if (threadRes.ok) {
+          const data = await threadRes.json();
+          setSelectedThread(data);
+        }
+      }
     }
     setSending(false);
   }
 
   const totalPages = Math.ceil(total / 20);
 
-  if (selectedEmail) {
+  // Thread detail view
+  if (selectedThread && selectedThreadMeta) {
+    const subject = selectedThreadMeta.subject || "(brak tematu)";
+    const app = selectedThread.application;
+
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              setSelectedEmail(null);
+              setSelectedThread(null);
+              setSelectedThreadMeta(null);
               setReplyContent("");
+              loadThreads();
             }}
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Wróć
           </Button>
-          <h1 className="font-heading text-2xl font-bold">Wiadomość</h1>
+          <h1 className="font-heading text-xl font-bold truncate">
+            {subject}
+          </h1>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1 min-w-0">
-                <CardTitle className="text-lg truncate">
-                  {selectedEmail.subject || "(brak tematu)"}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Od: {selectedEmail.from_name ? `${selectedEmail.from_name} <${selectedEmail.from_email}>` : selectedEmail.from_email}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Do: {selectedEmail.to_email}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(selectedEmail.created_at).toLocaleString("pl-PL")}
-                </p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <span className={cn("text-xs px-2 py-1 rounded", STATUS_COLORS[selectedEmail.status])}>
-                  {STATUS_LABELS[selectedEmail.status]}
-                </span>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {selectedEmail.application_id && (
-              <a
-                href={`/admin/zgloszenia/${selectedEmail.application_id}`}
-                className="inline-flex items-center gap-1 text-sm text-brand-red hover:underline"
+        {/* Thread header info */}
+        <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
+          <span>
+            {selectedThreadMeta.participant_name ||
+              selectedThreadMeta.participant_email}
+          </span>
+          {selectedThreadMeta.participant_name && (
+            <span className="text-xs">
+              &lt;{selectedThreadMeta.participant_email}&gt;
+            </span>
+          )}
+          {app && (
+            <a
+              href={`/admin/zgloszenia/${app.id}`}
+              className="inline-flex items-center gap-1 text-xs text-green-400 hover:underline"
+            >
+              <LinkIcon className="w-3 h-3" />
+              {getApplicationLabel(app)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          <span className="text-xs">
+            {selectedThread.messages.length} wiadomości
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => updateThreadStatus("unread")}
+          >
+            <Mail className="w-3.5 h-3.5 mr-1" />
+            Oznacz jako nieprzeczytane
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => updateThreadStatus("archived")}
+          >
+            <Archive className="w-3.5 h-3.5 mr-1" />
+            Archiwizuj
+          </Button>
+        </div>
+
+        {/* Messages */}
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          {selectedThread.messages.map((msg) => {
+            const isOutbound = msg.direction === "outbound";
+            return (
+              <div
+                key={msg.id}
+                className={cn(
+                  "flex",
+                  isOutbound ? "justify-end" : "justify-start"
+                )}
               >
-                <LinkIcon className="w-3 h-3" />
-                {getApplicationLabel(selectedEmail)}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
+                <div
+                  className={cn(
+                    "max-w-[75%] rounded-lg px-4 py-3 space-y-1",
+                    isOutbound ? "bg-brand-red/20" : "bg-secondary"
+                  )}
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium">
+                      {isOutbound
+                        ? "Wanted Society"
+                        : msg.from_name || msg.from_email}
+                    </span>
+                    <span>
+                      {new Date(msg.created_at).toLocaleString("pl-PL")}
+                    </span>
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap">
+                    {msg.body_text || "(brak treści)"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
 
-            <div className="bg-secondary/50 rounded-lg p-4 whitespace-pre-wrap text-sm">
-              {selectedEmail.body_text || selectedEmail.body_html || "(brak treści)"}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 flex-wrap">
-              {selectedEmail.status !== "unread" && (
-                <Button variant="outline" size="sm" onClick={() => updateStatus(selectedEmail.id, "unread")}>
-                  <Mail className="w-3.5 h-3.5 mr-1" />
-                  Oznacz jako nieprzeczytane
-                </Button>
-              )}
-              {selectedEmail.status !== "archived" && (
-                <Button variant="outline" size="sm" onClick={() => updateStatus(selectedEmail.id, "archived")}>
-                  <Archive className="w-3.5 h-3.5 mr-1" />
-                  Archiwizuj
-                </Button>
-              )}
-            </div>
-
-            {/* Reply */}
-            <div className="border-t border-border pt-4 space-y-3">
-              <h3 className="text-sm font-semibold">Odpowiedz</h3>
-              <Textarea
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Napisz odpowiedź..."
-                rows={4}
-              />
-              <Button
-                onClick={sendReply}
-                disabled={sending || !replyContent.trim()}
-                className="bg-brand-red hover:bg-brand-red/90"
-              >
-                <Send className="w-4 h-4 mr-1" />
-                {sending ? "Wysyłanie..." : "Wyślij"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Reply */}
+        <div className="border-t border-border pt-4 space-y-3">
+          <Textarea
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder="Napisz odpowiedź..."
+            rows={3}
+          />
+          <Button
+            onClick={sendReply}
+            disabled={sending || !replyContent.trim()}
+            className="bg-brand-red hover:bg-brand-red/90"
+          >
+            <Send className="w-4 h-4 mr-1" />
+            {sending ? "Wysyłanie..." : "Wyślij"}
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // Thread list view
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-3xl font-bold">
@@ -221,44 +313,40 @@ export default function AdminInboxPage() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={statusFilter === "" ? "default" : "outline"}
-          size="sm"
-          onClick={() => { setStatusFilter(""); setPage(1); }}
-        >
-          Wszystkie
-        </Button>
-        {(["unread", "read", "linked", "archived"] as EmailStatus[]).map((s) => (
+        {(["", "unread", "linked", "archived"] as ThreadFilter[]).map((f) => (
           <Button
-            key={s}
-            variant={statusFilter === s ? "default" : "outline"}
+            key={f}
+            variant={filter === f ? "default" : "outline"}
             size="sm"
-            onClick={() => { setStatusFilter(s); setPage(1); }}
+            onClick={() => {
+              setFilter(f);
+              setPage(1);
+            }}
           >
-            {STATUS_LABELS[s]}
+            {FILTER_LABELS[f]}
           </Button>
         ))}
       </div>
 
-      {/* Email list */}
+      {/* Thread list */}
       {loading ? (
         <p className="text-muted-foreground text-sm">Ładowanie...</p>
-      ) : emails.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Brak wiadomości.</p>
+      ) : threads.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Brak wątków.</p>
       ) : (
         <div className="space-y-2">
-          {emails.map((email) => (
+          {threads.map((thread) => (
             <Card
-              key={email.id}
+              key={thread.thread_id}
               className={cn(
                 "cursor-pointer transition-colors hover:bg-secondary/50",
-                email.status === "unread" && "border-brand-red/30"
+                thread.unread_count > 0 && "border-brand-red/30"
               )}
-              onClick={() => openEmail(email)}
+              onClick={() => openThread(thread)}
             >
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="shrink-0">
-                  {email.status === "unread" ? (
+                  {thread.unread_count > 0 ? (
                     <Mail className="w-5 h-5 text-brand-red" />
                   ) : (
                     <MailOpen className="w-5 h-5 text-muted-foreground" />
@@ -266,33 +354,51 @@ export default function AdminInboxPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className={cn("text-sm truncate", email.status === "unread" && "font-semibold")}>
-                      {email.from_name || email.from_email}
+                    <p
+                      className={cn(
+                        "text-sm truncate",
+                        thread.unread_count > 0 && "font-semibold"
+                      )}
+                    >
+                      {thread.participant_name || thread.participant_email}
                     </p>
-                    {email.application_id && (
+                    {thread.unread_count > 0 && (
+                      <span className="bg-brand-red text-white text-xs px-1.5 py-0.5 rounded-full font-medium">
+                        {thread.unread_count}
+                      </span>
+                    )}
+                    {thread.applications && (
                       <a
-                        href={`/admin/zgloszenia/${email.application_id}`}
+                        href={`/admin/zgloszenia/${thread.applications.id}`}
                         className="inline-flex items-center gap-1 text-xs text-green-400 hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <LinkIcon className="w-3 h-3 shrink-0" />
                         <span className="truncate max-w-[200px]">
-                          {getApplicationLabel(email)}
+                          {getApplicationLabel(thread.applications)}
                         </span>
                       </a>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
-                    {email.subject || "(brak tematu)"}
+                    {thread.subject || "(brak tematu)"}
                   </p>
+                  {thread.last_message_preview && (
+                    <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
+                      {thread.last_message_preview}
+                    </p>
+                  )}
                 </div>
-                <div className="shrink-0 text-right">
-                  <span className={cn("text-xs px-2 py-0.5 rounded", STATUS_COLORS[email.status])}>
-                    {STATUS_LABELS[email.status]}
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(email.created_at).toLocaleString("pl-PL")}
+                <div className="shrink-0 text-right space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {relativeTime(thread.last_message_at)}
                   </p>
+                  {thread.message_count > 1 && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <MessageSquare className="w-3 h-3" />
+                      {thread.message_count}
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </Card>

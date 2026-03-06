@@ -9,14 +9,13 @@ export async function GET() {
   }
 
   const supabase = createAdminClient();
-  const { count, error } = await supabase
-    .from("inbound_emails")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "unread");
+  const { data, error } = await supabase.rpc("count_email_threads", {
+    p_status: "unread",
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ count: count || 0 });
+  return NextResponse.json({ count: typeof data === "number" ? data : 0 });
 }

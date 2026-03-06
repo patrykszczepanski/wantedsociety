@@ -75,6 +75,7 @@ export interface PartnerData {
 }
 
 export type EmailStatus = "unread" | "read" | "linked" | "archived";
+export type EmailDirection = "inbound" | "outbound";
 
 export interface ApplicationMessage {
   id: string;
@@ -145,6 +146,8 @@ export interface InboundEmail {
   application_id: string | null;
   application_message_id: string | null;
   status: EmailStatus;
+  direction: EmailDirection;
+  thread_id: string;
   raw_payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -156,6 +159,24 @@ export interface InboundEmail {
       name: string;
       year: number;
     };
+  } | null;
+}
+
+export interface EmailThread {
+  thread_id: string;
+  subject: string | null;
+  participant_email: string | null;
+  participant_name: string | null;
+  application_id: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  message_count: number;
+  unread_count: number;
+  applications?: {
+    id: string;
+    type: ApplicationType;
+    data: ExhibitorData | MediaData | PartnerData;
+    event_editions?: { name: string; year: number };
   } | null;
 }
 

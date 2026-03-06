@@ -135,7 +135,39 @@ export async function POST(request: Request) {
   // Store inbound email record
   const status = applicationId && applicationMessageId ? "linked" : "unread";
 
+  // Resolve thread_id
+  const emailId = crypto.randomUUID();
+  let threadId: string = emailId;
+
+  // 1. If in_reply_to is set, find parent by message_id and reuse its thread_id
+  if (in_reply_to) {
+    const { data: parent } = await supabase
+      .from("inbound_emails")
+      .select("thread_id")
+      .eq("message_id", in_reply_to)
+      .limit(1)
+      .single();
+    if (parent) {
+      threadId = parent.thread_id;
+    }
+  }
+
+  // 2. If no thread found via in_reply_to, check for existing thread by application_id
+  if (threadId === emailId && applicationId) {
+    const { data: existing } = await supabase
+      .from("inbound_emails")
+      .select("thread_id")
+      .eq("application_id", applicationId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+    if (existing) {
+      threadId = existing.thread_id;
+    }
+  }
+
   await supabase.from("inbound_emails").insert({
+    id: emailId,
     message_id: message_id || null,
     in_reply_to: in_reply_to || null,
     from_email: fromEmail,
@@ -147,6 +179,8 @@ export async function POST(request: Request) {
     application_id: applicationId,
     application_message_id: applicationMessageId,
     status,
+    direction: "inbound",
+    thread_id: threadId,
     raw_payload: payload,
   });
 

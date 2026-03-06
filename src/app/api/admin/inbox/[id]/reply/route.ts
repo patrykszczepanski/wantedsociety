@@ -67,6 +67,19 @@ export async function POST(
     status: "sent",
   });
 
+  // Store outbound reply in inbound_emails for thread view
+  await supabase.from("inbound_emails").insert({
+    from_email: FROM_EMAIL,
+    from_name: "Wanted Society",
+    to_email: email.from_email,
+    subject: `Re: ${email.subject || "Wiadomość"}`,
+    body_text: content.trim(),
+    application_id: email.application_id,
+    status: "read",
+    direction: "outbound",
+    thread_id: email.thread_id,
+  });
+
   // If linked to application, also create an application_message
   if (email.application_id) {
     await supabase.from("application_messages").insert({
