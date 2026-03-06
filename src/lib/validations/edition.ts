@@ -8,6 +8,7 @@ export const editionSchema = z.object({
   location: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   instagram_embed_url: z.string().url("Nieprawidłowy URL").nullable().optional().or(z.literal("")),
+  facebook_event_url: z.string().url("Nieprawidłowy URL").nullable().optional().or(z.literal("")),
   applications_open: z.boolean().optional(),
 });
 

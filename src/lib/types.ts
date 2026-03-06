@@ -11,6 +11,7 @@ export interface EventEdition {
   location: string | null;
   description: string | null;
   instagram_embed_url: string | null;
+  facebook_event_url: string | null;
   applications_open: boolean;
   created_at: string;
   updated_at: string;

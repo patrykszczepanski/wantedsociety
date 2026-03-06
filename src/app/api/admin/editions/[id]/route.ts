@@ -59,6 +59,7 @@ export async function PATCH(
   if (validated.location !== undefined) updateData.location = validated.location || null;
   if (validated.description !== undefined) updateData.description = validated.description || null;
   if (validated.instagram_embed_url !== undefined) updateData.instagram_embed_url = validated.instagram_embed_url || null;
+  if (validated.facebook_event_url !== undefined) updateData.facebook_event_url = validated.facebook_event_url || null;
   if (validated.applications_open !== undefined) updateData.applications_open = validated.applications_open;
 
   const { data, error } = await supabase

@@ -24,6 +24,7 @@ export default function AdminEditionEditPage() {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [instagramEmbedUrl, setInstagramEmbedUrl] = useState("");
+  const [facebookEventUrl, setFacebookEventUrl] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -38,6 +39,7 @@ export default function AdminEditionEditPage() {
         setLocation(data.location ?? "");
         setDescription(data.description ?? "");
         setInstagramEmbedUrl(data.instagram_embed_url ?? "");
+        setFacebookEventUrl(data.facebook_event_url ?? "");
       }
     }
     load();
@@ -56,6 +58,7 @@ export default function AdminEditionEditPage() {
         location: location || null,
         description: description || null,
         instagram_embed_url: instagramEmbedUrl || null,
+        facebook_event_url: facebookEventUrl || null,
       }),
     });
 
@@ -149,6 +152,15 @@ export default function AdminEditionEditPage() {
               id="instagram_embed_url"
               value={instagramEmbedUrl}
               onChange={(e) => setInstagramEmbedUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="facebook_event_url">Facebook event URL</Label>
+            <Input
+              id="facebook_event_url"
+              value={facebookEventUrl}
+              onChange={(e) => setFacebookEventUrl(e.target.value)}
+              placeholder="https://facebook.com/events/..."
             />
           </div>
           <Button

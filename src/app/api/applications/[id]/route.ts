@@ -51,7 +51,7 @@ export async function PATCH(
 
   if (!["pending", "accepted", "rejected"].includes(status)) {
     return NextResponse.json(
-      { error: "Nieprawidłowy status" },
+      { error: "Nieprawidlowy status" },
       { status: 400 }
     );
   }
@@ -68,27 +68,40 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Send status change email for accepted/rejected
+  // Send status change email for accepted/rejected (skip partner type)
   if (status === "accepted" || status === "rejected") {
     const { data: appWithUser } = await supabase
       .from("applications")
-      .select("type, user_id, profiles!user_id(email, full_name)")
+      .select("type, event_edition_id, user_id, profiles!user_id(email, full_name)")
       .eq("id", id)
       .single();
 
-    if (appWithUser) {
+    if (appWithUser && appWithUser.type !== "partner") {
       const profile = appWithUser.profiles as unknown as { email: string; full_name: string } | null;
       if (profile) {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
         const appType = APPLICATION_TYPES[appWithUser.type as ApplicationType] || appWithUser.type;
+
+        // Fetch edition for facebook_event_url
+        let facebookEventUrl: string | undefined;
+        if (appWithUser.event_edition_id) {
+          const { data: edition } = await supabase
+            .from("event_editions")
+            .select("facebook_event_url")
+            .eq("id", appWithUser.event_edition_id)
+            .single();
+          facebookEventUrl = edition?.facebook_event_url ?? undefined;
+        }
+
         sendEmail({
           to: profile.email,
-          subject: `Zgłoszenie ${appType} — ${status === "accepted" ? "zaakceptowane" : "odrzucone"}`,
+          subject: `Zgloszenie ${appType} — ${status === "accepted" ? "zaakceptowane" : "odrzucone"}`,
           react: ApplicationStatusEmail({
             userName: profile.full_name,
-            applicationType: appType,
+            applicationType: appWithUser.type as "exhibitor" | "media",
             status,
             applicationUrl: `${siteUrl}/zgloszenia`,
+            facebookEventUrl,
           }),
           template: "application_status",
           applicationId: id,

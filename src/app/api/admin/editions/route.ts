@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       location: validated.location || null,
       description: validated.description || null,
       instagram_embed_url: validated.instagram_embed_url || null,
+      facebook_event_url: validated.facebook_event_url || null,
       applications_open: false,
     })
     .select()
