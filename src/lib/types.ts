@@ -148,6 +148,15 @@ export interface InboundEmail {
   raw_payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  applications?: {
+    id: string;
+    type: ApplicationType;
+    data: ExhibitorData | MediaData | PartnerData;
+    event_editions?: {
+      name: string;
+      year: number;
+    };
+  } | null;
 }
 
 export interface OutboundEmailLog {

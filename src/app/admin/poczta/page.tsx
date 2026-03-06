@@ -14,7 +14,21 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { APPLICATION_TYPES } from "@/lib/constants";
 import type { InboundEmail, EmailStatus } from "@/lib/types";
+
+function getApplicationLabel(email: InboundEmail): string {
+  if (!email.applications) return "Powiązane zgłoszenie";
+  const typeLabel = APPLICATION_TYPES[email.applications.type] || email.applications.type;
+  const data = email.applications.data as unknown as Record<string, unknown>;
+  const name = data?.car_name || data?.company_name || data?.instagram_handle || "";
+  const edition = email.applications.event_editions;
+  const editionLabel = edition ? `${edition.name}` : "";
+  if (name && editionLabel) return `${typeLabel} — ${name} (${editionLabel})`;
+  if (name) return `${typeLabel} — ${name}`;
+  if (editionLabel) return `${typeLabel} — ${editionLabel}`;
+  return typeLabel;
+}
 
 const STATUS_LABELS: Record<EmailStatus, string> = {
   unread: "Nieprzeczytane",
@@ -146,11 +160,11 @@ export default function AdminInboxPage() {
           <CardContent className="space-y-4">
             {selectedEmail.application_id && (
               <a
-                href={`/admin/zgloszenia`}
+                href={`/admin/zgloszenia/${selectedEmail.application_id}`}
                 className="inline-flex items-center gap-1 text-sm text-brand-red hover:underline"
               >
                 <LinkIcon className="w-3 h-3" />
-                Powiązane zgłoszenie
+                {getApplicationLabel(selectedEmail)}
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
@@ -256,7 +270,16 @@ export default function AdminInboxPage() {
                       {email.from_name || email.from_email}
                     </p>
                     {email.application_id && (
-                      <LinkIcon className="w-3 h-3 text-green-400 shrink-0" />
+                      <a
+                        href={`/admin/zgloszenia/${email.application_id}`}
+                        className="inline-flex items-center gap-1 text-xs text-green-400 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <LinkIcon className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[200px]">
+                          {getApplicationLabel(email)}
+                        </span>
+                      </a>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">

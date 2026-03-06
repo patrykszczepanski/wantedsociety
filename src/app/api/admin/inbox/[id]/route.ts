@@ -17,7 +17,15 @@ export async function GET(
   // Get the email
   const { data, error } = await supabase
     .from("inbound_emails")
-    .select("*")
+    .select(`
+      *,
+      applications:application_id (
+        id,
+        type,
+        data,
+        event_editions:event_edition_id (name, year)
+      )
+    `)
     .eq("id", id)
     .single();
 

@@ -5,6 +5,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REPLY_TO_REGEX = /^reply\+([0-9a-f-]+)@/i;
 
+function stripQuotedContent(text: string): string {
+  const lines = text.split('\n');
+  const resultLines: string[] = [];
+
+  for (const line of lines) {
+    if (/^On .+ wrote:\s*$/.test(line)) break;
+    if (/^W dniu .+ napisał/.test(line)) break;
+    if (/^-{2,}\s*Original Message\s*-{2,}/i.test(line) || /^-{2,}\s*Oryginalna wiadomość\s*-{2,}/i.test(line)) break;
+    if (/^-{5,}\s*Forwarded message/i.test(line)) break;
+    if (/^>/.test(line.trim())) continue;
+
+    resultLines.push(line);
+  }
+
+  return resultLines.join('\n').trim();
+}
+
 export async function POST(request: Request) {
   // Verify webhook secret
   const secret = request.headers.get("X-Webhook-Secret");
@@ -94,7 +111,7 @@ export async function POST(request: Request) {
       .single();
 
     const isAdmin = senderProfile?.role === "admin";
-    const messageContent = bodyText.trim() || subject || "";
+    const messageContent = stripQuotedContent(bodyText) || subject || "";
 
     if (messageContent) {
       const { data: msg } = await supabase
@@ -125,7 +142,7 @@ export async function POST(request: Request) {
     from_name: fromName || null,
     to_email: to,
     subject: subject || null,
-    body_text: bodyText || null,
+    body_text: stripQuotedContent(bodyText) || null,
     body_html: bodyHtml || null,
     application_id: applicationId,
     application_message_id: applicationMessageId,

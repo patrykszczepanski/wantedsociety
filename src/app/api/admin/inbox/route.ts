@@ -18,7 +18,15 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("inbound_emails")
-    .select("*", { count: "exact" })
+    .select(`
+      *,
+      applications:application_id (
+        id,
+        type,
+        data,
+        event_editions:event_edition_id (name, year)
+      )
+    `, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
