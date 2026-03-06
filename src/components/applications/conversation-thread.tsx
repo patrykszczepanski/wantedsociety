@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { getRealtimeClient } from "@/lib/supabase/realtime";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Send, Mail } from "lucide-react";
 import type { ApplicationMessage } from "@/lib/types";
 
 interface ConversationThreadProps {
@@ -130,9 +130,14 @@ export function ConversationThread({
                 </p>
               )}
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {new Date(msg.created_at).toLocaleString("pl-PL")}
-              </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <p className="text-xs text-muted-foreground">
+                  {new Date(msg.created_at).toLocaleString("pl-PL")}
+                </p>
+                {msg.source === "email" && (
+                  <Mail className="w-3 h-3 text-muted-foreground" />
+                )}
+              </div>
             </div>
           </div>
         ))}

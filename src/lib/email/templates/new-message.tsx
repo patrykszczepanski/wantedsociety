@@ -6,18 +6,21 @@ import {
   Section,
   Text,
   Heading,
+  Link,
 } from "@react-email/components";
 
 interface NewMessageEmailProps {
   recipientName: string;
   senderName: string;
   messagePreview: string;
+  applicationUrl: string;
 }
 
 export function NewMessageEmail({
   recipientName,
   senderName,
   messagePreview,
+  applicationUrl,
 }: NewMessageEmailProps) {
   return (
     <Html>
@@ -46,8 +49,24 @@ export function NewMessageEmail({
                 {messagePreview}
               </Text>
             </Section>
-            <Text style={{ color: "#A0A0A0", fontSize: "14px", marginTop: "16px" }}>
-              Zaloguj się na stronie, aby odpowiedzieć.
+            <Link
+              href={applicationUrl}
+              style={{
+                display: "inline-block",
+                backgroundColor: "#E8344E",
+                color: "#FFFFFF",
+                padding: "10px 20px",
+                borderRadius: "6px",
+                textDecoration: "none",
+                fontSize: "14px",
+                fontWeight: "bold",
+                marginTop: "16px",
+              }}
+            >
+              Zobacz konwersację
+            </Link>
+            <Text style={{ color: "#666", fontSize: "12px", marginTop: "16px" }}>
+              Możesz odpowiedzieć bezpośrednio na tego maila, a Twoja wiadomość pojawi się w konwersacji przy zgłoszeniu.
             </Text>
           </Section>
         </Container>

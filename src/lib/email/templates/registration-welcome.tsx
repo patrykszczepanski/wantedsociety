@@ -9,23 +9,15 @@ import {
   Link,
 } from "@react-email/components";
 
-interface ApplicationStatusEmailProps {
+interface RegistrationWelcomeEmailProps {
   userName: string;
-  applicationType: string;
-  status: "accepted" | "rejected";
-  applicationUrl: string;
+  loginUrl: string;
 }
 
-export function ApplicationStatusEmail({
+export function RegistrationWelcomeEmail({
   userName,
-  applicationType,
-  status,
-  applicationUrl,
-}: ApplicationStatusEmailProps) {
-  const statusText =
-    status === "accepted" ? "zaakceptowane" : "odrzucone";
-  const statusColor = status === "accepted" ? "#22c55e" : "#E8344E";
-
+  loginUrl,
+}: RegistrationWelcomeEmailProps) {
   return (
     <Html>
       <Head />
@@ -39,14 +31,13 @@ export function ApplicationStatusEmail({
               Cześć {userName}!
             </Text>
             <Text style={{ color: "#A0A0A0", fontSize: "14px" }}>
-              Twoje zgłoszenie typu <strong>{applicationType}</strong> zostało{" "}
-              <span style={{ color: statusColor, fontWeight: "bold" }}>
-                {statusText}
-              </span>
-              .
+              Witamy w Wanted Society! Twoje konto zostało pomyślnie utworzone.
+            </Text>
+            <Text style={{ color: "#A0A0A0", fontSize: "14px" }}>
+              Możesz teraz składać zgłoszenia na nasze wydarzenia motoryzacyjne.
             </Text>
             <Link
-              href={applicationUrl}
+              href={loginUrl}
               style={{
                 display: "inline-block",
                 backgroundColor: "#E8344E",
@@ -59,11 +50,8 @@ export function ApplicationStatusEmail({
                 marginTop: "12px",
               }}
             >
-              Zobacz szczegóły
+              Przejdź do strony
             </Link>
-            <Text style={{ color: "#666", fontSize: "12px", marginTop: "16px" }}>
-              Możesz odpowiedzieć bezpośrednio na tego maila, a Twoja wiadomość pojawi się w konwersacji przy zgłoszeniu.
-            </Text>
           </Section>
         </Container>
       </Body>

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail } from "@/lib/email/send";
+import { ApplicationStatusEmail } from "@/lib/email/templates/application-status";
+import { APPLICATION_TYPES } from "@/lib/constants";
+import type { ApplicationType } from "@/lib/types";
 
 export async function GET(
   _request: Request,
@@ -62,6 +66,36 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Send status change email for accepted/rejected
+  if (status === "accepted" || status === "rejected") {
+    const { data: appWithUser } = await supabase
+      .from("applications")
+      .select("type, user_id, profiles!user_id(email, full_name)")
+      .eq("id", id)
+      .single();
+
+    if (appWithUser) {
+      const profile = appWithUser.profiles as unknown as { email: string; full_name: string } | null;
+      if (profile) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        const appType = APPLICATION_TYPES[appWithUser.type as ApplicationType] || appWithUser.type;
+        sendEmail({
+          to: profile.email,
+          subject: `Zgłoszenie ${appType} — ${status === "accepted" ? "zaakceptowane" : "odrzucone"}`,
+          react: ApplicationStatusEmail({
+            userName: profile.full_name,
+            applicationType: appType,
+            status,
+            applicationUrl: `${siteUrl}/zgloszenia`,
+          }),
+          template: "application_status",
+          applicationId: id,
+          relatedId: id,
+        }).catch((err) => console.error("[applications] Status email failed:", err));
+      }
+    }
   }
 
   return NextResponse.json(data);

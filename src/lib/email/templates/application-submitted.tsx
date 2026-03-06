@@ -9,23 +9,19 @@ import {
   Link,
 } from "@react-email/components";
 
-interface ApplicationStatusEmailProps {
+interface ApplicationSubmittedEmailProps {
   userName: string;
   applicationType: string;
-  status: "accepted" | "rejected";
+  editionName: string;
   applicationUrl: string;
 }
 
-export function ApplicationStatusEmail({
+export function ApplicationSubmittedEmail({
   userName,
   applicationType,
-  status,
+  editionName,
   applicationUrl,
-}: ApplicationStatusEmailProps) {
-  const statusText =
-    status === "accepted" ? "zaakceptowane" : "odrzucone";
-  const statusColor = status === "accepted" ? "#22c55e" : "#E8344E";
-
+}: ApplicationSubmittedEmailProps) {
   return (
     <Html>
       <Head />
@@ -39,11 +35,12 @@ export function ApplicationStatusEmail({
               Cześć {userName}!
             </Text>
             <Text style={{ color: "#A0A0A0", fontSize: "14px" }}>
-              Twoje zgłoszenie typu <strong>{applicationType}</strong> zostało{" "}
-              <span style={{ color: statusColor, fontWeight: "bold" }}>
-                {statusText}
-              </span>
-              .
+              Twoje zgłoszenie typu <strong style={{ color: "#FFFFFF" }}>{applicationType}</strong> na
+              edycję <strong style={{ color: "#FFFFFF" }}>{editionName}</strong> zostało przyjęte
+              i oczekuje na rozpatrzenie.
+            </Text>
+            <Text style={{ color: "#A0A0A0", fontSize: "14px" }}>
+              Poinformujemy Cię o decyzji mailowo. Możesz też śledzić status na stronie.
             </Text>
             <Link
               href={applicationUrl}
@@ -59,11 +56,8 @@ export function ApplicationStatusEmail({
                 marginTop: "12px",
               }}
             >
-              Zobacz szczegóły
+              Zobacz zgłoszenie
             </Link>
-            <Text style={{ color: "#666", fontSize: "12px", marginTop: "16px" }}>
-              Możesz odpowiedzieć bezpośrednio na tego maila, a Twoja wiadomość pojawi się w konwersacji przy zgłoszeniu.
-            </Text>
           </Section>
         </Container>
       </Body>

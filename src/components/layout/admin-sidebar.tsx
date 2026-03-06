@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Home, Image, ShoppingBag, Users, CalendarDays } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, FileText, Home, Image, ShoppingBag, Users, CalendarDays, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -10,6 +11,7 @@ const links = [
   { href: "/admin/edycje", label: "Edycje", icon: CalendarDays },
   { href: "/admin/zgloszenia", label: "Zgłoszenia", icon: FileText },
   { href: "/admin/domki", label: "Domki", icon: Home },
+  { href: "/admin/poczta", label: "Poczta", icon: Mail },
   { href: "/admin/galeria", label: "Galeria", icon: Image },
   { href: "/admin/sklep", label: "Sklep", icon: ShoppingBag },
   { href: "/admin/uzytkownicy", label: "Użytkownicy", icon: Users },
@@ -17,6 +19,24 @@ const links = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/admin/inbox/unread-count");
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadCount(data.count || 0);
+        }
+      } catch {
+        // silently ignore
+      }
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside className="w-64 bg-sidebar border-r border-sidebar-border min-h-screen p-4 hidden md:block">
@@ -41,6 +61,11 @@ export function AdminSidebar() {
             >
               <link.icon className="w-4 h-4" />
               {link.label}
+              {link.href === "/admin/poczta" && unreadCount > 0 && (
+                <span className="ml-auto bg-brand-red text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

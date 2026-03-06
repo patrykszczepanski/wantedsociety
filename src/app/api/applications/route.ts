@@ -6,6 +6,9 @@ import {
   mediaSchema,
   partnerSchema,
 } from "@/lib/validations/application";
+import { sendEmail } from "@/lib/email/send";
+import { ApplicationSubmittedEmail } from "@/lib/email/templates/application-submitted";
+import { APPLICATION_TYPES } from "@/lib/constants";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -108,6 +111,47 @@ export async function POST(request: Request) {
       );
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Send confirmation email to user (fire-and-forget)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const appType = APPLICATION_TYPES[type as keyof typeof APPLICATION_TYPES] || type;
+
+  // Fetch edition name for the email
+  const { data: edition } = await supabase
+    .from("event_editions")
+    .select("name")
+    .eq("id", activeEdition.id)
+    .single();
+
+  sendEmail({
+    to: user.email,
+    subject: `Zgłoszenie ${appType} zostało przyjęte`,
+    react: ApplicationSubmittedEmail({
+      userName: user.full_name,
+      applicationType: appType,
+      editionName: edition?.name || "",
+      applicationUrl: `${siteUrl}/zgloszenia`,
+    }),
+    template: "application_submitted",
+    relatedId: application.id,
+  }).catch((err) => console.error("[applications] Submission email failed:", err));
+
+  // Notify admin about new application
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    sendEmail({
+      to: adminEmail,
+      subject: `Nowe zgłoszenie: ${appType} od ${user.full_name}`,
+      react: ApplicationSubmittedEmail({
+        userName: user.full_name,
+        applicationType: appType,
+        editionName: edition?.name || "",
+        applicationUrl: `${siteUrl}/admin/zgloszenia`,
+      }),
+      template: "application_submitted_admin",
+      relatedId: application.id,
+    }).catch((err) => console.error("[applications] Admin notification email failed:", err));
   }
 
   return NextResponse.json(application, { status: 201 });

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { hashPassword, createSession } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail } from "@/lib/email/send";
+import { RegistrationWelcomeEmail } from "@/lib/email/templates/registration-welcome";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -51,6 +53,15 @@ export async function POST(request: Request) {
   }
 
   await createSession(profile.id);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  sendEmail({
+    to: email,
+    subject: "Witamy w Wanted Society!",
+    react: RegistrationWelcomeEmail({ userName: full_name, loginUrl: siteUrl }),
+    template: "registration_welcome",
+    relatedId: profile.id,
+  }).catch((err) => console.error("[register] Welcome email failed:", err));
 
   return NextResponse.json({ success: true });
 }

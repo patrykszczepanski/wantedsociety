@@ -74,12 +74,16 @@ export interface PartnerData {
   application_description: string;
 }
 
+export type EmailStatus = "unread" | "read" | "linked" | "archived";
+
 export interface ApplicationMessage {
   id: string;
   application_id: string;
   sender_id: string;
   content: string;
   is_admin: boolean;
+  source?: "web" | "email";
+  inbound_email_id?: string;
   created_at: string;
   sender_name?: string;
 }
@@ -126,4 +130,34 @@ export interface ProductImage {
   storage_path: string;
   is_primary: boolean;
   sort_order: number;
+}
+
+export interface InboundEmail {
+  id: string;
+  message_id: string | null;
+  in_reply_to: string | null;
+  from_email: string;
+  from_name: string | null;
+  to_email: string;
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
+  application_id: string | null;
+  application_message_id: string | null;
+  status: EmailStatus;
+  raw_payload: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutboundEmailLog {
+  id: string;
+  resend_id: string | null;
+  to_email: string;
+  from_email: string;
+  subject: string | null;
+  template: string | null;
+  related_id: string | null;
+  status: string;
+  created_at: string;
 }

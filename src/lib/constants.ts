@@ -29,3 +29,10 @@ export const CABIN_ELIGIBLE_TYPES: import("@/lib/types").ApplicationType[] = [
   "exhibitor",
   "media",
 ];
+
+export const EMAIL_STATUSES = {
+  unread: "Nieprzeczytane",
+  read: "Przeczytane",
+  linked: "Powiązane",
+  archived: "Zarchiwizowane",
+} as const;
