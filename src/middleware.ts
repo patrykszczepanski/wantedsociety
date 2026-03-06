@@ -21,15 +21,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const supabase = createAdminClient();
-  const { data: sessionData } = await supabase
-    .from("sessions")
-    .select("id, user_id, expires_at, profiles(*)")
-    .eq("id", sessionId)
-    .gt("expires_at", new Date().toISOString())
-    .single();
+  try {
+    const supabase = createAdminClient();
+    const { data: sessionData } = await supabase
+      .from("sessions")
+      .select("id, user_id, expires_at, profiles(*)")
+      .eq("id", sessionId)
+      .gt("expires_at", new Date().toISOString())
+      .single();
 
-  if (!sessionData || !sessionData.profiles) {
+    if (!sessionData || !sessionData.profiles) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/logowanie";
+      url.searchParams.set("redirect", pathname);
+      const response = NextResponse.redirect(url);
+      response.cookies.set("session_id", "", { maxAge: 0, path: "/" });
+      return response;
+    }
+
+    const profile = sessionData.profiles as unknown as Profile;
+
+    // Admin routes — require admin role
+    if (pathname.startsWith("/admin") && profile.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    return NextResponse.next();
+  } catch {
+    // Fail closed: any error → redirect to login
     const url = request.nextUrl.clone();
     url.pathname = "/logowanie";
     url.searchParams.set("redirect", pathname);
@@ -37,17 +58,6 @@ export async function middleware(request: NextRequest) {
     response.cookies.set("session_id", "", { maxAge: 0, path: "/" });
     return response;
   }
-
-  const profile = sessionData.profiles as unknown as Profile;
-
-  // Admin routes — require admin role
-  if (pathname.startsWith("/admin") && profile.role !== "admin") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {

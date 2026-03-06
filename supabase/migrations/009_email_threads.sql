@@ -10,12 +10,12 @@ CREATE INDEX idx_inbound_emails_message_id ON inbound_emails(message_id);
 
 -- Backfill: group existing emails by application_id where possible
 UPDATE inbound_emails e
-SET thread_id = sub.min_id
+SET thread_id = sub.first_id
 FROM (
-  SELECT application_id, MIN(id) AS min_id
+  SELECT DISTINCT ON (application_id) id AS first_id, application_id
   FROM inbound_emails
   WHERE application_id IS NOT NULL
-  GROUP BY application_id
+  ORDER BY application_id, created_at ASC
 ) sub
 WHERE e.application_id = sub.application_id;
 
@@ -51,7 +51,7 @@ BEGIN
     (ARRAY_AGG(e.subject ORDER BY e.created_at ASC) FILTER (WHERE e.subject IS NOT NULL))[1] AS subject,
     (ARRAY_AGG(e.from_email ORDER BY e.created_at ASC) FILTER (WHERE e.direction = 'inbound'))[1] AS participant_email,
     (ARRAY_AGG(e.from_name ORDER BY e.created_at ASC) FILTER (WHERE e.direction = 'inbound'))[1] AS participant_name,
-    MAX(e.application_id) AS application_id,
+    (ARRAY_AGG(e.application_id ORDER BY e.created_at ASC) FILTER (WHERE e.application_id IS NOT NULL))[1] AS application_id,
     MAX(e.created_at) AS last_message_at,
     (ARRAY_AGG(COALESCE(LEFT(e.body_text, 120), '') ORDER BY e.created_at DESC))[1] AS last_message_preview,
     COUNT(*)::BIGINT AS message_count,
@@ -62,7 +62,7 @@ BEGIN
     p_status IS NULL
     OR (p_status = 'unread' AND COUNT(*) FILTER (WHERE e.status = 'unread') > 0)
     OR (p_status = 'archived' AND COUNT(*) FILTER (WHERE e.status = 'archived') = COUNT(*))
-    OR (p_status = 'linked' AND MAX(e.application_id) IS NOT NULL)
+    OR (p_status = 'linked' AND BOOL_OR(e.application_id IS NOT NULL))
     OR (p_status NOT IN ('unread', 'archived', 'linked') AND EXISTS (
       SELECT 1 FROM inbound_emails ie WHERE ie.thread_id = e.thread_id AND ie.status = p_status
     ))
@@ -86,7 +86,7 @@ BEGIN
         p_status IS NULL
         OR (p_status = 'unread' AND COUNT(*) FILTER (WHERE e.status = 'unread') > 0)
         OR (p_status = 'archived' AND COUNT(*) FILTER (WHERE e.status = 'archived') = COUNT(*))
-        OR (p_status = 'linked' AND MAX(e.application_id) IS NOT NULL)
+        OR (p_status = 'linked' AND BOOL_OR(e.application_id IS NOT NULL))
         OR (p_status NOT IN ('unread', 'archived', 'linked') AND EXISTS (
           SELECT 1 FROM inbound_emails ie WHERE ie.thread_id = e.thread_id AND ie.status = p_status
         ))
