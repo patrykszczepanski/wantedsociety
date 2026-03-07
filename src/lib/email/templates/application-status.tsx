@@ -2,7 +2,7 @@ import { Img } from "@react-email/components";
 import { EmailLayout, SignOff } from "./shared-layout";
 import { getPublicStorageUrl } from "@/lib/supabase/storage";
 
-const BANNER_URL = getPublicStorageUrl("email-assets", "wyniki-banner.png");
+const BANNER_URL = getPublicStorageUrl("email-assets", "results-banner.png");
 
 interface ApplicationStatusEmailProps {
   userName: string;
