@@ -2,13 +2,7 @@ import {
   Html,
   Head,
   Body,
-  Container,
-  Section,
   Img,
-  Link,
-  Text,
-  Row,
-  Column,
 } from "@react-email/components";
 import { getPublicStorageUrl } from "@/lib/supabase/storage";
 import { INSTAGRAM_URL } from "@/lib/constants";
@@ -16,106 +10,97 @@ import { INSTAGRAM_URL } from "@/lib/constants";
 const LOGO_URL = getPublicStorageUrl("email-assets", "ws-logo-60.png");
 const FOOTER_LOGO_URL = getPublicStorageUrl("email-assets", "ws-footer-logo.png");
 
-const styles = {
-  body: {
-    backgroundColor: "#1A1A1A",
-    fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-    margin: "0" as const,
-    padding: "0" as const,
-  },
-  container: {
-    maxWidth: "600px",
-    margin: "0 auto",
-  },
-  headerBar: {
-    background: "linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)",
-    padding: "20px 24px",
-    textAlign: "center" as const,
-  },
-  content: {
-    padding: "32px 24px",
-  },
-  footerLinks: {
-    padding: "24px",
-    textAlign: "center" as const,
-  },
-  footerLink: {
-    color: "#E8344E",
-    fontSize: "14px",
-    fontWeight: "600" as const,
-    textDecoration: "none",
-    margin: "0 8px",
-  },
-  footerBar: {
-    background: "linear-gradient(135deg, #2A2A2A 0%, #1A1A1A 100%)",
-    padding: "20px 24px",
-    textAlign: "center" as const,
-  },
-  footerText: {
-    color: "#666",
-    fontSize: "12px",
-    margin: "8px 0 0 0",
-  },
-} as const;
-
 interface EmailLayoutProps {
   children: React.ReactNode;
   facebookEventUrl?: string;
+  showSignOff?: boolean;
 }
 
-export function EmailLayout({ children, facebookEventUrl }: EmailLayoutProps) {
+export function EmailLayout({ children, facebookEventUrl, showSignOff = false }: EmailLayoutProps) {
   return (
     <Html>
       <Head />
-      <Body style={styles.body}>
-        <Container style={styles.container}>
-          {/* Header */}
-          <Section style={styles.headerBar}>
-            <Img
-              src={LOGO_URL}
-              width="60"
-              height="60"
-              alt="Wanted Society"
-              style={{ margin: "0 auto" }}
-            />
-          </Section>
+      <Body style={{ backgroundColor: "#f4f4f4", margin: 0, padding: 0, fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+        <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style={{ backgroundColor: "#f4f4f4" }}>
+          <tr>
+            <td align="center">
+              <table role="presentation" width="600" cellPadding="0" cellSpacing="0" style={{ maxWidth: "600px", width: "100%" }}>
+                {/* Header gradient bar with logo */}
+                <tr>
+                  <td align="center" style={{ background: "linear-gradient(to right, rgb(18, 17, 17), rgb(18, 17, 18))", padding: "10px 0px" }}>
+                    <table role="presentation" cellPadding="0" cellSpacing="0">
+                      <tr>
+                        <td align="center">
+                          <Img
+                            src={LOGO_URL}
+                            width="60"
+                            height="60"
+                            alt="Wanted Society"
+                          />
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
 
-          {/* Content */}
-          <Section style={styles.content}>
-            {children}
-          </Section>
+                {/* Content */}
+                <tr>
+                  <td style={{ backgroundColor: "#ffffff" }}>
+                    {children}
+                  </td>
+                </tr>
 
-          {/* Footer links */}
-          <Section style={styles.footerLinks}>
-            <Link href={INSTAGRAM_URL} style={styles.footerLink}>
-              Instagram
-            </Link>
-            {facebookEventUrl && (
-              <>
-                <span style={{ color: "#444" }}> | </span>
-                <Link href={facebookEventUrl} style={styles.footerLink}>
-                  Wydarzenie na Facebooku
-                </Link>
-              </>
-            )}
-          </Section>
+                {/* Sign-off section */}
+                {showSignOff && (
+                  <tr>
+                    <td style={{ backgroundColor: "#ffffff", padding: "0 20px 20px 20px", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+                      <SignOff facebookEventUrl={facebookEventUrl} />
+                    </td>
+                  </tr>
+                )}
 
-          {/* Footer bar */}
-          <Section style={styles.footerBar}>
-            <Img
-              src={FOOTER_LOGO_URL}
-              width="140"
-              alt="Wanted Society"
-              style={{ margin: "0 auto" }}
-            />
-            <Text style={styles.footerText}>
-              &copy; {new Date().getFullYear()} Wanted Society. Wszystkie prawa zastrzezone.
-            </Text>
-          </Section>
-        </Container>
+                {/* Footer gradient bar */}
+                <tr>
+                  <td align="center" style={{ background: "linear-gradient(to right, rgb(18, 17, 17), rgb(18, 17, 18))", padding: "8px 0px" }}>
+                    <Img
+                      src={FOOTER_LOGO_URL}
+                      height="30"
+                      alt="Wanted Society"
+                    />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </Body>
     </Html>
   );
 }
 
-export { styles };
+interface SignOffProps {
+  facebookEventUrl?: string;
+}
+
+export function SignOff({ facebookEventUrl }: SignOffProps) {
+  return (
+    <>
+      <p style={{ margin: "16px 0 4px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Pozdrawiamy,"}<br />
+        <strong>{"Zesp\u00f3\u0142 Wanted Society"}</strong>{" \uD83D\uDCA5\uD83D\uDE80"}
+      </p>
+      <p style={{ margin: "16px 0 4px 0", fontSize: "16px", lineHeight: "1.5" }}>
+        <a href={INSTAGRAM_URL} style={{ color: "#000000", fontWeight: "bold", textDecoration: "none" }}>
+          {"\uD83D\uDCCD Obserwuj nas na Instagramie"}
+        </a>
+      </p>
+      {facebookEventUrl && (
+        <p style={{ margin: "4px 0", fontSize: "16px", lineHeight: "1.5" }}>
+          <a href={facebookEventUrl} style={{ color: "#000000", fontWeight: "bold", textDecoration: "none" }}>
+            {"\uD83D\uDCCD \u015Aled\u017A wydarzenie"}
+          </a>
+        </p>
+      )}
+    </>
+  );
+}

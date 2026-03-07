@@ -1,10 +1,4 @@
-import {
-  Text,
-  Heading,
-  Link,
-  Hr,
-} from "@react-email/components";
-import { EmailLayout } from "./shared-layout";
+import { EmailLayout, SignOff } from "./shared-layout";
 
 interface RegistrationWelcomeEmailProps {
   userName: string;
@@ -17,53 +11,34 @@ export function RegistrationWelcomeEmail({
 }: RegistrationWelcomeEmailProps) {
   return (
     <EmailLayout>
-      <Text style={{ color: "#FFFFFF", fontSize: "16px", lineHeight: "1.6" }}>
-        Czesc {userName}!
-      </Text>
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
+        <tr>
+          <td style={{ padding: "20px", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+            <h1 style={{ fontSize: "24px", margin: "0 0 16px 0", color: "#000000" }}>
+              {`Cze\u015B\u0107 ${userName}! \uD83D\uDC4B`}
+            </h1>
 
-      <Heading
-        as="h2"
-        style={{
-          color: "#FFD700",
-          fontSize: "20px",
-          margin: "16px 0",
-          fontFamily: "'Oswald', sans-serif",
-        }}
-      >
-        Witamy w Wanted Society!
-      </Heading>
+            <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+              {"Witamy w Wanted Society! Twoje konto zosta\u0142o pomy\u015Blnie utworzone."}
+            </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Twoje konto zostalo pomyslnie utworzone.
-      </Text>
+            <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+              {"Mo\u017Cesz teraz sk\u0142ada\u0107 zg\u0142oszenia na nasze wydarzenia motoryzacyjne."}
+            </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Mozesz teraz skladac zgloszenia na nasze wydarzenia motoryzacyjne.
-      </Text>
+            <p style={{ margin: "0 0 16px 0" }}>
+              <a
+                href={loginUrl}
+                style={{ color: "#000000", fontWeight: "bold", textDecoration: "underline" }}
+              >
+                {"Przejd\u017A do strony"}
+              </a>
+            </p>
 
-      <Link
-        href={loginUrl}
-        style={{
-          display: "inline-block",
-          backgroundColor: "#E8344E",
-          color: "#FFFFFF",
-          padding: "12px 24px",
-          borderRadius: "6px",
-          textDecoration: "none",
-          fontSize: "14px",
-          fontWeight: "bold",
-          marginTop: "16px",
-        }}
-      >
-        Przejdz do strony
-      </Link>
-
-      <Hr style={{ borderColor: "#333", margin: "24px 0" }} />
-
-      <Text style={{ color: "#888", fontSize: "13px", lineHeight: "1.6" }}>
-        Pozdrawiamy,{"\n"}
-        Ekipa Wanted Society
-      </Text>
+            <SignOff />
+          </td>
+        </tr>
+      </table>
     </EmailLayout>
   );
 }

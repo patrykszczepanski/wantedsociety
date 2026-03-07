@@ -1,10 +1,4 @@
-import {
-  Section,
-  Text,
-  Link,
-  Hr,
-} from "@react-email/components";
-import { EmailLayout } from "./shared-layout";
+import { EmailLayout, SignOff } from "./shared-layout";
 
 interface NewMessageEmailProps {
   recipientName: string;
@@ -21,51 +15,40 @@ export function NewMessageEmail({
 }: NewMessageEmailProps) {
   return (
     <EmailLayout>
-      <Text style={{ color: "#FFFFFF", fontSize: "16px", lineHeight: "1.6" }}>
-        Czesc {recipientName}!
-      </Text>
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
+        <tr>
+          <td style={{ padding: "20px", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+            <h1 style={{ fontSize: "24px", margin: "0 0 16px 0", color: "#000000" }}>
+              {`Cze\u015B\u0107 ${recipientName}! \uD83D\uDC4B`}
+            </h1>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Masz nowa wiadomosc od <strong style={{ color: "#FFFFFF" }}>{senderName}</strong>:
-      </Text>
+            <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+              {"Masz now\u0105 wiadomo\u015B\u0107 od "}
+              <strong>{senderName}</strong>
+              {":"}
+            </p>
 
-      <Section
-        style={{
-          backgroundColor: "#222",
-          borderRadius: "8px",
-          padding: "16px",
-          margin: "16px 0",
-          borderLeft: "4px solid #E8344E",
-        }}
-      >
-        <Text style={{ color: "#FFFFFF", fontSize: "14px", margin: 0, lineHeight: "1.6" }}>
-          {messagePreview}
-        </Text>
-      </Section>
+            <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style={{ margin: "0 0 16px 0" }}>
+              <tr>
+                <td style={{ padding: "12px 16px", backgroundColor: "#f4f4f4", borderLeft: "4px solid #000000", fontSize: "16px", lineHeight: "1.5", color: "#333333" }}>
+                  {messagePreview}
+                </td>
+              </tr>
+            </table>
 
-      <Link
-        href={applicationUrl}
-        style={{
-          display: "inline-block",
-          backgroundColor: "#E8344E",
-          color: "#FFFFFF",
-          padding: "12px 24px",
-          borderRadius: "6px",
-          textDecoration: "none",
-          fontSize: "14px",
-          fontWeight: "bold",
-          marginTop: "8px",
-        }}
-      >
-        Zobacz konwersacje
-      </Link>
+            <p style={{ margin: "0 0 16px 0" }}>
+              <a
+                href={applicationUrl}
+                style={{ color: "#000000", fontWeight: "bold", textDecoration: "underline" }}
+              >
+                {"Zobacz konwersacj\u0119"}
+              </a>
+            </p>
 
-      <Hr style={{ borderColor: "#333", margin: "24px 0" }} />
-
-      <Text style={{ color: "#666", fontSize: "12px", lineHeight: "1.5" }}>
-        Mozesz odpowiedziec bezposrednio na tego maila, a Twoja wiadomosc pojawi sie
-        w konwersacji przy zgloszeniu.
-      </Text>
+            <SignOff />
+          </td>
+        </tr>
+      </table>
     </EmailLayout>
   );
 }

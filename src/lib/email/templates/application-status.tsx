@@ -1,12 +1,5 @@
-import {
-  Section,
-  Text,
-  Heading,
-  Link,
-  Img,
-  Hr,
-} from "@react-email/components";
-import { EmailLayout } from "./shared-layout";
+import { Img } from "@react-email/components";
+import { EmailLayout, SignOff } from "./shared-layout";
 import { getPublicStorageUrl } from "@/lib/supabase/storage";
 
 const BANNER_URL = getPublicStorageUrl("email-assets", "wyniki-banner.png");
@@ -20,181 +13,118 @@ interface ApplicationStatusEmailProps {
 }
 
 export function ApplicationStatusEmail({
-  userName,
   applicationType,
   status,
-  applicationUrl,
   facebookEventUrl,
 }: ApplicationStatusEmailProps) {
   return (
     <EmailLayout facebookEventUrl={facebookEventUrl}>
-      {/* Banner */}
+      {/* Banner image */}
       <Img
         src={BANNER_URL}
         width="600"
-        alt="Wyniki zgloszenia"
-        style={{ width: "100%", borderRadius: "8px", marginBottom: "24px" }}
+        alt="Wyniki zg\u0142oszenia"
+        style={{ width: "100%", display: "block" }}
       />
 
-      <Text style={{ color: "#FFFFFF", fontSize: "16px", lineHeight: "1.6" }}>
-        Hej {userName}!
-      </Text>
-
-      {status === "accepted" ? (
-        <AcceptedContent applicationType={applicationType} applicationUrl={applicationUrl} />
-      ) : (
-        <RejectedContent applicationUrl={applicationUrl} />
-      )}
+      {/* Body content */}
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
+        <tr>
+          <td style={{ padding: "20px", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+            {status === "accepted" ? (
+              <AcceptedContent applicationType={applicationType} facebookEventUrl={facebookEventUrl} />
+            ) : (
+              <RejectedContent facebookEventUrl={facebookEventUrl} />
+            )}
+          </td>
+        </tr>
+      </table>
     </EmailLayout>
   );
 }
 
 function AcceptedContent({
   applicationType,
-  applicationUrl,
+  facebookEventUrl,
 }: {
   applicationType: "exhibitor" | "media";
-  applicationUrl: string;
+  facebookEventUrl?: string;
 }) {
   return (
     <>
-      <Heading
-        as="h2"
-        style={{
-          color: "#22c55e",
-          fontSize: "22px",
-          margin: "16px 0",
-          fontFamily: "'Oswald', sans-serif",
-        }}
-      >
-        Twoje zgloszenie zostalo zaakceptowane!
-      </Heading>
+      <h1 style={{ fontSize: "24px", margin: "0 0 16px 0", color: "#000000" }}>
+        {"Cze\u015B\u0107! \uD83D\uDC4B\uD83D\uDE04"}
+      </h1>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Mega sie cieszymy, ze dolaczysz do nas na wydarzeniu – bedzie grubo!
-      </Text>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Z rado\u015Bci\u0105 informujemy, \u017Ce "}
+        <span style={{ color: "green" }}>
+          <strong>{"Twoje zg\u0142oszenie zosta\u0142o zaakceptowane!"}</strong>
+        </span>
+      </p>
 
-      {applicationType === "exhibitor" ? (
-        <Section
-          style={{
-            backgroundColor: "#222",
-            borderRadius: "8px",
-            padding: "20px",
-            margin: "20px 0",
-            borderLeft: "4px solid #22c55e",
-          }}
-        >
-          <Text style={{ color: "#FFFFFF", fontSize: "14px", lineHeight: "1.7", margin: 0 }}>
-            Na miejscu otrzymasz wyznaczone miejsce parkingowe na terenie wystawy.
-            Szczegoly dotyczace lokalizacji i godzin wjazdu przekazemy wkrotce.
-          </Text>
-        </Section>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Mega si\u0119 cieszymy, \u017Ce do\u0142\u0105czysz do nas na wydarzeniu \u2013 "}
+        <strong>{"b\u0119dzie grubo!"}</strong>
+        {" \uD83D\uDCA5\uD83D\uDE97"}
+      </p>
+
+      {applicationType === "media" ? (
+        <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+          {"Na miejscu otrzymasz "}
+          <strong>{"identyfikator"}</strong>
+          {" \u2013 umo\u017Cliwi Ci on swobodne poruszanie si\u0119 po ca\u0142ym terenie eventu (\u0142\u0105cznie ze scen\u0105). Dzi\u0119ki temu b\u0119dziesz mia\u0142 dost\u0119p do najlepszych kadr\u00f3w!"}
+        </p>
       ) : (
-        <Section
-          style={{
-            backgroundColor: "#222",
-            borderRadius: "8px",
-            padding: "20px",
-            margin: "20px 0",
-            borderLeft: "4px solid #22c55e",
-          }}
-        >
-          <Text style={{ color: "#FFFFFF", fontSize: "14px", lineHeight: "1.7", margin: 0 }}>
-            Na miejscu otrzymasz identyfikator – umozliwi Ci on swobodne poruszanie sie
-            po calym terenie eventu (lacznie ze scena). Dzieki temu bedziesz mial dostep
-            do najlepszych kadrow!
-          </Text>
-        </Section>
+        <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+          {"Na miejscu otrzymasz "}
+          <strong>{"wyznaczone miejsce parkingowe"}</strong>
+          {" na terenie wystawy. Szczeg\u00f3\u0142y dotycz\u0105ce lokalizacji i godzin wjazdu przeka\u017Cemy wkr\u00f3tce."}
+        </p>
       )}
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Gotowy na zajawke?
-      </Text>
+      <h1 style={{ fontSize: "24px", margin: "16px 0", color: "#000000" }}>
+        {"Gotowy na zajawk\u0119? \u2728"}
+      </h1>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Sledz nasz Instagram, zeby byc na biezaco z aktualnosciami!
-      </Text>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Do zobaczenia na miejscu \u2013 b\u0119dzie klimat, auta, ludzie, zdj\u0119cia i nagrody! \uD83D\uDE97"}
+        <br />
+        {"Nie mo\u017Cemy si\u0119 doczeka\u0107! \uD83E\uDD75\uD83D\uDD25"}
+      </p>
 
-      <Link
-        href={applicationUrl}
-        style={{
-          display: "inline-block",
-          backgroundColor: "#E8344E",
-          color: "#FFFFFF",
-          padding: "12px 24px",
-          borderRadius: "6px",
-          textDecoration: "none",
-          fontSize: "14px",
-          fontWeight: "bold",
-          marginTop: "16px",
-        }}
-      >
-        Zobacz swoje zgloszenie
-      </Link>
-
-      <Hr style={{ borderColor: "#333", margin: "24px 0" }} />
-
-      <Text style={{ color: "#888", fontSize: "13px", lineHeight: "1.6" }}>
-        Do zobaczenia na evencie!{"\n"}
-        Ekipa Wanted Society
-      </Text>
+      <SignOff facebookEventUrl={facebookEventUrl} />
     </>
   );
 }
 
-function RejectedContent({ applicationUrl }: { applicationUrl: string }) {
+function RejectedContent({
+  facebookEventUrl,
+}: {
+  facebookEventUrl?: string;
+}) {
   return (
     <>
-      <Heading
-        as="h2"
-        style={{
-          color: "#E8344E",
-          fontSize: "22px",
-          margin: "16px 0",
-          fontFamily: "'Oswald', sans-serif",
-        }}
-      >
-        Twoje zgloszenie nie spelnilo naszych kryteriow.
-      </Heading>
+      <h1 style={{ fontSize: "24px", margin: "0 0 16px 0", color: "#000000" }}>
+        {"Cze\u015B\u0107! \uD83D\uDC4B\uD83D\uDE04"}
+      </h1>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Konkurencja byla ogromna, a liczba miejsc ograniczona – niestety tym razem
-        sie nie udalo.
-      </Text>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Z przykro\u015Bci\u0105 informujemy, \u017Ce "}
+        <strong>{"Twoje zg\u0142oszenie nie spe\u0142ni\u0142o naszych kryteri\u00f3w."}</strong>
+        {" Konkurencja by\u0142a ogromna, a liczba miejsc ograniczona \uD83D\uDE1E"}
+      </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        To jednak nie znaczy, ze nie mozesz byc czescia wydarzenia! Zapraszamy Cie
-        jako widza – atmosfera bedzie niesamowita i na pewno nie pozalujesz.
-      </Text>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Liczymy jednak, \u017Ce nie b\u0119dziesz mia\u0142 nam tego za z\u0142e i mimo wszystko zdecydujesz si\u0119 odwiedzi\u0107 nas w roli widza. B\u0119dzie co ogl\u0105da\u0107, a i atmosfera jak zawsze \uD83D\uDD25"}
+      </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Trzymamy kciuki za dalszy rozwoj projektu i liczymy, ze zobaczymy sie na
-        kolejnej edycji!
-      </Text>
+      <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+        {"Trzymamy kciuki za dalszy rozw\u00f3j projektu i "}
+        <strong>{"mamy nadziej\u0119 na Twoje zg\u0142oszenie w przysz\u0142ym roku! \uD83D\uDE97\uD83D\uDCAA"}</strong>
+      </p>
 
-      <Link
-        href={applicationUrl}
-        style={{
-          display: "inline-block",
-          backgroundColor: "#E8344E",
-          color: "#FFFFFF",
-          padding: "12px 24px",
-          borderRadius: "6px",
-          textDecoration: "none",
-          fontSize: "14px",
-          fontWeight: "bold",
-          marginTop: "16px",
-        }}
-      >
-        Zobacz szczegoly
-      </Link>
-
-      <Hr style={{ borderColor: "#333", margin: "24px 0" }} />
-
-      <Text style={{ color: "#888", fontSize: "13px", lineHeight: "1.6" }}>
-        Pozdrawiamy,{"\n"}
-        Ekipa Wanted Society
-      </Text>
+      <SignOff facebookEventUrl={facebookEventUrl} />
     </>
   );
 }

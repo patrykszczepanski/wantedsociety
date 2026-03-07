@@ -1,10 +1,4 @@
-import {
-  Text,
-  Heading,
-  Link,
-  Hr,
-} from "@react-email/components";
-import { EmailLayout } from "./shared-layout";
+import { EmailLayout, SignOff } from "./shared-layout";
 
 interface ApplicationSubmittedEmailProps {
   userName: string;
@@ -21,55 +15,38 @@ export function ApplicationSubmittedEmail({
 }: ApplicationSubmittedEmailProps) {
   return (
     <EmailLayout>
-      <Text style={{ color: "#FFFFFF", fontSize: "16px", lineHeight: "1.6" }}>
-        Czesc {userName}!
-      </Text>
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0">
+        <tr>
+          <td style={{ padding: "20px", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+            <h1 style={{ fontSize: "24px", margin: "0 0 16px 0", color: "#000000" }}>
+              {`Cze\u015B\u0107 ${userName}! \uD83D\uDC4B`}
+            </h1>
 
-      <Heading
-        as="h2"
-        style={{
-          color: "#FFD700",
-          fontSize: "20px",
-          margin: "16px 0",
-          fontFamily: "'Oswald', sans-serif",
-        }}
-      >
-        Zgloszenie zostalo przyjete!
-      </Heading>
+            <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+              {"Twoje zg\u0142oszenie typu "}
+              <strong>{applicationType}</strong>
+              {" na edycj\u0119 "}
+              <strong>{editionName}</strong>
+              {" zosta\u0142o przyj\u0119te i oczekuje na rozpatrzenie."}
+            </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Twoje zgloszenie typu <strong style={{ color: "#FFFFFF" }}>{applicationType}</strong> na
-        edycje <strong style={{ color: "#FFFFFF" }}>{editionName}</strong> zostalo przyjete
-        i oczekuje na rozpatrzenie.
-      </Text>
+            <p style={{ margin: "0 0 16px 0", fontSize: "16px", lineHeight: "1.5", color: "#000000" }}>
+              {"Poinformujemy Ci\u0119 o decyzji mailowo. Mo\u017Cesz te\u017C \u015Bledzi\u0107 status na stronie:"}
+            </p>
 
-      <Text style={{ color: "#CCCCCC", fontSize: "15px", lineHeight: "1.7" }}>
-        Poinformujemy Cie o decyzji mailowo. Mozesz tez sledzic status na stronie.
-      </Text>
+            <p style={{ margin: "0 0 16px 0" }}>
+              <a
+                href={applicationUrl}
+                style={{ color: "#000000", fontWeight: "bold", textDecoration: "underline" }}
+              >
+                {"Zobacz zg\u0142oszenie"}
+              </a>
+            </p>
 
-      <Link
-        href={applicationUrl}
-        style={{
-          display: "inline-block",
-          backgroundColor: "#E8344E",
-          color: "#FFFFFF",
-          padding: "12px 24px",
-          borderRadius: "6px",
-          textDecoration: "none",
-          fontSize: "14px",
-          fontWeight: "bold",
-          marginTop: "16px",
-        }}
-      >
-        Zobacz zgloszenie
-      </Link>
-
-      <Hr style={{ borderColor: "#333", margin: "24px 0" }} />
-
-      <Text style={{ color: "#888", fontSize: "13px", lineHeight: "1.6" }}>
-        Pozdrawiamy,{"\n"}
-        Ekipa Wanted Society
-      </Text>
+            <SignOff />
+          </td>
+        </tr>
+      </table>
     </EmailLayout>
   );
 }
