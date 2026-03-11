@@ -46,9 +46,12 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { content, is_admin } = body;
+  const { content, is_admin, photo_paths } = body;
 
-  if (!content?.trim()) {
+  const hasContent = content?.trim();
+  const hasPhotos = Array.isArray(photo_paths) && photo_paths.length > 0;
+
+  if (!hasContent && !hasPhotos) {
     return NextResponse.json(
       { error: "Wiadomość nie może być pusta" },
       { status: 400 }
@@ -61,8 +64,9 @@ export async function POST(
     .insert({
       application_id: id,
       sender_id: user.id,
-      content: content.trim(),
+      content: hasContent ? content.trim() : "",
       is_admin: is_admin || false,
+      photo_paths: hasPhotos ? photo_paths : [],
     })
     .select()
     .single();
@@ -73,7 +77,12 @@ export async function POST(
 
   // Send email notification to the other party
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const messagePreview = content.trim().substring(0, 200);
+  let messagePreview = hasContent ? content.trim().substring(0, 200) : "";
+  if (hasPhotos) {
+    messagePreview += messagePreview
+      ? ` [+${photo_paths.length} zdjęć]`
+      : `[${photo_paths.length} zdjęć]`;
+  }
 
   if (is_admin) {
     // Admin sent message -> email the application owner

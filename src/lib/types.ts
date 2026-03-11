@@ -84,6 +84,7 @@ export interface ApplicationMessage {
   sender_id: string;
   content: string;
   is_admin: boolean;
+  photo_paths?: string[];
   source?: "web" | "email";
   inbound_email_id?: string;
   created_at: string;

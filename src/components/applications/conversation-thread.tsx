@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { getRealtimeClient } from "@/lib/supabase/realtime";
+import { getPublicStorageUrl } from "@/lib/supabase/storage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Mail } from "lucide-react";
+import { Send, Mail, ImagePlus, X, Loader2 } from "lucide-react";
+import { ChatImageLightbox } from "./chat-image-lightbox";
 import type { ApplicationMessage } from "@/lib/types";
 
 interface ConversationThreadProps {
@@ -12,6 +14,8 @@ interface ConversationThreadProps {
   currentUserId: string;
   isAdmin?: boolean;
 }
+
+const MAX_PHOTOS = 5;
 
 export function ConversationThread({
   applicationId,
@@ -21,8 +25,12 @@ export function ConversationThread({
   const [messages, setMessages] = useState<ApplicationMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<{ path: string; url: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function loadMessages() {
@@ -82,14 +90,60 @@ export function ConversationThread({
     }
   }, [messages]);
 
+  const getPhotoUrl = useCallback((path: string) => {
+    return getPublicStorageUrl("application-photos", path);
+  }, []);
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remaining = MAX_PHOTOS - pendingPhotos.length;
+    const toUpload = Array.from(files).slice(0, remaining);
+
+    if (toUpload.length === 0) return;
+
+    setUploading(true);
+    try {
+      const uploaded: { path: string; url: string }[] = [];
+      for (const file of toUpload) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/applications/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          const { path } = await res.json();
+          uploaded.push({ path, url: getPhotoUrl(path) });
+        }
+      }
+      setPendingPhotos((prev) => [...prev, ...uploaded]);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function removePendingPhoto(index: number) {
+    setPendingPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function sendMessage() {
-    if (!newMessage.trim()) return;
+    const hasText = newMessage.trim().length > 0;
+    const hasPhotos = pendingPhotos.length > 0;
+    if (!hasText && !hasPhotos) return;
+
     setSending(true);
 
     const res = await fetch(`/api/applications/${applicationId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newMessage, is_admin: isAdmin }),
+      body: JSON.stringify({
+        content: newMessage,
+        is_admin: isAdmin,
+        photo_paths: pendingPhotos.map((p) => p.path),
+      }),
     });
 
     if (res.ok) {
@@ -98,8 +152,16 @@ export function ConversationThread({
         prev.some((m) => m.id === sentMessage.id) ? prev : [...prev, sentMessage]
       );
       setNewMessage("");
+      setPendingPhotos([]);
     }
     setSending(false);
+  }
+
+  function openLightbox(photoPaths: string[], index: number) {
+    setLightbox({
+      images: photoPaths.map(getPhotoUrl),
+      index,
+    });
   }
 
   return (
@@ -129,7 +191,34 @@ export function ConversationThread({
                   {msg.is_admin ? "Administrator" : msg.sender_name}
                 </p>
               )}
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.content && (
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              )}
+              {msg.photo_paths && msg.photo_paths.length > 0 && (
+                <div
+                  className={`mt-2 gap-1.5 ${
+                    msg.photo_paths.length === 1
+                      ? "flex"
+                      : "grid grid-cols-2"
+                  }`}
+                >
+                  {msg.photo_paths.map((path, i) => (
+                    <button
+                      key={path}
+                      type="button"
+                      className="relative rounded overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openLightbox(msg.photo_paths!, i)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getPhotoUrl(path)}
+                        alt={`Załącznik ${i + 1}`}
+                        className="w-full h-auto max-h-48 object-cover rounded"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-1.5 mt-1">
                 <p className="text-xs text-muted-foreground">
                   {new Date(msg.created_at).toLocaleString("pl-PL")}
@@ -144,7 +233,50 @@ export function ConversationThread({
         <div ref={bottomRef} />
       </div>
 
+      {pendingPhotos.length > 0 && (
+        <div className="border-t border-border px-3 pt-2 flex gap-2 overflow-x-auto">
+          {pendingPhotos.map((photo, i) => (
+            <div key={photo.path} className="relative shrink-0 w-16 h-16">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.url}
+                alt={`Pending ${i + 1}`}
+                className="w-16 h-16 object-cover rounded"
+              />
+              <button
+                type="button"
+                className="absolute -top-1 -right-1 bg-black/70 rounded-full p-0.5"
+                onClick={() => removePendingPhoto(i)}
+              >
+                <X className="w-3 h-3 text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="border-t border-border p-3 flex gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:text-white"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || pendingPhotos.length >= MAX_PHOTOS}
+        >
+          {uploading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <ImagePlus className="w-4 h-4" />
+          )}
+        </Button>
         <Textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
@@ -160,13 +292,22 @@ export function ConversationThread({
         />
         <Button
           onClick={sendMessage}
-          disabled={sending || !newMessage.trim()}
+          disabled={sending || (!newMessage.trim() && pendingPhotos.length === 0)}
           size="icon"
           className="bg-brand-red hover:bg-brand-red/90 shrink-0"
         >
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
+      {lightbox && (
+        <ChatImageLightbox
+          images={lightbox.images}
+          currentIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onNavigate={(index) => setLightbox((prev) => prev ? { ...prev, index } : null)}
+        />
+      )}
     </div>
   );
 }

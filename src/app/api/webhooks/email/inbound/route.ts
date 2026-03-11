@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   let bodyText = "";
   let bodyHtml = "";
   let fromName = "";
+  let emailAttachments: { filename: string; mimeType: string; content: Uint8Array }[] = [];
 
   if (raw) {
     try {
@@ -61,6 +62,24 @@ export async function POST(request: Request) {
       bodyText = parsed.text || "";
       bodyHtml = parsed.html || "";
       fromName = parsed.from?.name || "";
+
+      // Extract image attachments
+      if (parsed.attachments?.length) {
+        emailAttachments = parsed.attachments
+          .filter((a) => {
+            if (!a.mimeType?.startsWith("image/")) return false;
+            const buf = typeof a.content === "string" ? Buffer.from(a.content, "base64") : a.content;
+            return buf.byteLength <= 10 * 1024 * 1024;
+          })
+          .map((a) => {
+            const buf = typeof a.content === "string" ? Buffer.from(a.content, "base64") : a.content;
+            return {
+              filename: a.filename || "attachment.jpg",
+              mimeType: a.mimeType || "image/jpeg",
+              content: new Uint8Array(buf),
+            };
+          });
+      }
     } catch (err) {
       console.error("[inbound-email] Failed to parse raw email:", err);
     }
@@ -113,15 +132,32 @@ export async function POST(request: Request) {
     const isAdmin = senderProfile?.role === "admin";
     const messageContent = stripQuotedContent(bodyText) || subject || "";
 
-    if (messageContent) {
+    // Upload email image attachments to storage
+    const photoPaths: string[] = [];
+    const emailId_ = crypto.randomUUID();
+    for (const attachment of emailAttachments) {
+      const safeName = attachment.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `email-attachments/${emailId_}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("application-photos")
+        .upload(storagePath, attachment.content, { contentType: attachment.mimeType });
+      if (!uploadError) {
+        photoPaths.push(storagePath);
+      } else {
+        console.error("[inbound-email] Failed to upload attachment:", uploadError.message);
+      }
+    }
+
+    if (messageContent || photoPaths.length > 0) {
       const { data: msg } = await supabase
         .from("application_messages")
         .insert({
           application_id: applicationId,
           sender_id: senderId,
-          content: messageContent,
+          content: messageContent || "",
           is_admin: isAdmin,
           source: "email",
+          photo_paths: photoPaths,
         })
         .select("id")
         .single();
